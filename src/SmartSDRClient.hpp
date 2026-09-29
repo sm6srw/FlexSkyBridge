@@ -10,6 +10,7 @@ class SmartSDRClient {
 public:
     using FreqCallback = std::function<void(double freqHz)>;
     using PortCallback = std::function<void(uint16_t port)>;
+    using ModeCallback = std::function<void(const std::string& mode)>;
 
     SmartSDRClient();
     ~SmartSDRClient();
@@ -22,11 +23,14 @@ public:
     uint32_t daxIQStreamId() const { return daxIQStreamId_.load(); }
 
     void setSliceFrequency(int sliceIdx, double freqHz);
+    void setSliceMode(int sliceIdx, const std::string& mode);
+    std::string getSliceMode() const;
     void startDaxIQStream(int channel, uint16_t udpPort, int sampleRate);
     void removeDaxIQStream(uint32_t streamID);
 
     void onFrequencyChanged(FreqCallback cb) { freqCallback_ = std::move(cb); }
     void onDaxIQPort(PortCallback cb)        { daxIQPortCallback_ = std::move(cb); }
+    void onModeChanged(ModeCallback cb)      { modeCallback_ = std::move(cb); }
 
 private:
     void sendCommand(const std::string& cmd);
@@ -48,6 +52,10 @@ private:
 
     FreqCallback          freqCallback_;
     PortCallback          daxIQPortCallback_;
+    ModeCallback          modeCallback_;
+
+    mutable std::mutex    modeMutex_;
+    std::string           currentMode_{ "USB" };
 
     std::string           radioIP_;
 };

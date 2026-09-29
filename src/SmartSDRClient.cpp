@@ -120,6 +120,25 @@ void SmartSDRClient::setSliceFrequency(int sliceIdx, double freqHz) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Control de modo — USB/LSB/CW/AM/FM/DIGU/DIGL/etc.
+// ─────────────────────────────────────────────────────────────────────────────
+void SmartSDRClient::setSliceMode(int sliceIdx, const std::string& mode) {
+    std::ostringstream cmd;
+    cmd << "slice set " << sliceIdx << " mode=" << mode;
+
+    dbgSdr("slice set mode: " + cmd.str());
+    sendCommand(cmd.str());
+
+    std::lock_guard<std::mutex> lock(modeMutex_);
+    currentMode_ = mode;
+}
+
+std::string SmartSDRClient::getSliceMode() const {
+    std::lock_guard<std::mutex> lock(modeMutex_);
+    return currentMode_;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Secuencia exacta de flexlib-go smartsdr-iqtransfer
 // ─────────────────────────────────────────────────────────────────────────────
 void SmartSDRClient::startDaxIQStream(int channel,
@@ -261,7 +280,7 @@ void SmartSDRClient::parseLine(const std::string& line) {
         if (pipePos == std::string::npos) return;
         std::string payload = line.substr(pipePos + 1);
 
-        // ── Slice — capturar frecuencia Y pan ID ─────────────────────────────
+        // ── Slice — capturar frecuencia, modo y pan ID ───────────────────────
         if (payload.rfind("slice ", 0) == 0) {
             // Frecuencia Doppler
             auto freqPos = payload.find("RF_frequency=");
@@ -270,6 +289,22 @@ void SmartSDRClient::parseLine(const std::string& line) {
                     double freqMHz = std::stod(payload.substr(freqPos + 13));
                     if (freqCallback_) freqCallback_(freqMHz * 1e6);
                 } catch (...) {}
+            }
+
+            // Modo (USB/LSB/CW/AM/FM/DIGU/DIGL/...)
+            auto modePos = payload.find("mode=");
+            if (modePos != std::string::npos) {
+                auto start = modePos + 5;
+                auto end   = payload.find(' ', start);
+                std::string mode = payload.substr(start,
+                    end == std::string::npos ? end : end - start);
+                if (!mode.empty()) {
+                    {
+                        std::lock_guard<std::mutex> lock(modeMutex_);
+                        currentMode_ = mode;
+                    }
+                    if (modeCallback_) modeCallback_(mode);
+                }
             }
 
             // Pan ID — extraído del mensaje de slice (siempre disponible)

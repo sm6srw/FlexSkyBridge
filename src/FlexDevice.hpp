@@ -106,6 +106,7 @@ public:
                      const bool automatic) override {}
     bool getDCOffsetMode(const int dir, const size_t ch) const override { return true; }
 
+
 private:
     void startRotctld();
     void stopRotctld();
@@ -117,6 +118,7 @@ private:
     double      currentFreqHz_    { 145e6 };
     double      currentSampleRate_{ 96000.0 };
     std::string currentAntenna_   { "ANT1" };
+    std::string currentMode_      { "USB" };
 
     std::unique_ptr<SmartSDRClient> smartsdr_;
     std::unique_ptr<DaxIQReceiver>  daxReceiver_;

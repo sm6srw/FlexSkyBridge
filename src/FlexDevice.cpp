@@ -243,13 +243,20 @@ int FlexDevice::activateStream(SoapySDR::Stream* stream,
 
         // Arrancar servidor rigctld para recibir frecuencias Doppler de SkyRoof
         dbg("Arrancando rigctld en puerto " + std::to_string(rigctldPort_));
-        rigctld_->start(rigctldPort_, [this](double freqHz) {
-            dbg("rigctld set_freq: " + std::to_string(freqHz / 1e6) + " MHz");
-            currentFreqHz_ = freqHz;
-            rigctld_->setCurrentFreq(freqHz);
-            if (smartsdr_->isConnected())
-                smartsdr_->setSliceFrequency(0, freqHz);
-        });
+        rigctld_->start(rigctldPort_,
+            [this](double freqHz) {
+                dbg("rigctld set_freq: " + std::to_string(freqHz / 1e6) + " MHz");
+                currentFreqHz_ = freqHz;
+                rigctld_->setCurrentFreq(freqHz);
+                if (smartsdr_->isConnected())
+                    smartsdr_->setSliceFrequency(0, freqHz);
+            },
+            [this](const std::string& mode, int /*passband*/) {
+                dbg("rigctld set_mode: " + mode);
+                currentMode_ = mode;
+                if (smartsdr_->isConnected())
+                    smartsdr_->setSliceMode(0, mode);           
+            });
 
         // Arrancar receptor UDP primero
         dbg("Arrancando DAX receiver en puerto " + std::to_string(udpPort_));
@@ -260,6 +267,10 @@ int FlexDevice::activateStream(SoapySDR::Stream* stream,
         smartsdr_->startDaxIQStream(daxChannel_, udpPort_,
                                      static_cast<int>(currentSampleRate_));
         dbg("startDaxIQStream completado");
+
+        // Aplicar modo actual al radio una vez conectado
+        if (smartsdr_->isConnected())
+            smartsdr_->setSliceMode(0, currentMode_);
 
     } catch (const std::exception& e) {
         dbg("EXCEPCION en activateStream: " + std::string(e.what()));

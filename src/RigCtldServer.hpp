@@ -14,13 +14,15 @@
 class RigCtldServer {
 public:
     using FreqCallback = std::function<void(double freqHz)>;
+    using ModeCallback = std::function<void(const std::string& mode, int passband)>;
 
     RigCtldServer() = default;
     ~RigCtldServer() { stop(); }
 
-    void start(uint16_t port, FreqCallback onSetFreq);
+    void start(uint16_t port, FreqCallback onSetFreq, ModeCallback onSetMode = nullptr);
     void stop();
     void setCurrentFreq(double freqHz) { currentFreq_ = freqHz; }
+    void setCurrentMode(const std::string& mode, int passband = 0);
 
 private:
     void listenLoop();
@@ -31,7 +33,12 @@ private:
     std::atomic<bool>   running_{ false };
     std::thread         listenThread_;
     FreqCallback        onSetFreq_;
+    ModeCallback        onSetMode_;
     std::atomic<double> currentFreq_{ 145e6 };
+
+    std::mutex          modeMutex_;
+    std::string         currentMode_{ "USB" };
+    int                 currentPassband_{ 3000 };
 
     std::vector<std::thread> clientThreads_;
     std::mutex               clientMutex_;

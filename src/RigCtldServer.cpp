@@ -14,11 +14,12 @@ static void dbgRig(const std::string& msg) {
     log << "[rigctld] " << msg << "\n";
 }
 
-void RigCtldServer::start(uint16_t port, FreqCallback onSetFreq) {
+void RigCtldServer::start(uint16_t port, FreqCallback onSetFreq, ModeCallback onSetMode) {
     if (running_.load()) return;
 
     port_       = port;
     onSetFreq_  = std::move(onSetFreq);
+    onSetMode_  = std::move(onSetMode);
     running_    = true;
 
     listenThread_ = std::thread(&RigCtldServer::listenLoop, this);
@@ -41,6 +42,12 @@ void RigCtldServer::stop() {
     clientThreads_.clear();
 
     dbgRig("Servidor rigctld detenido");
+}
+
+void RigCtldServer::setCurrentMode(const std::string& mode, int passband) {
+    std::lock_guard<std::mutex> lk(modeMutex_);
+    currentMode_ = mode;
+    if (passband > 0) currentPassband_ = passband;
 }
 
 void RigCtldServer::listenLoop() {
@@ -88,7 +95,7 @@ void RigCtldServer::listenLoop() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Protocolo rigctld (Hamlib) — subconjunto mínimo para frecuencia
+// Protocolo rigctld (Hamlib) — subconjunto mínimo para frecuencia y modo
 // ─────────────────────────────────────────────────────────────────────────────
 void RigCtldServer::handleClient(uintptr_t clientSock) {
     SOCKET s = (SOCKET)clientSock;
@@ -141,13 +148,40 @@ void RigCtldServer::handleClient(uintptr_t clientSock) {
                 oss << (long long)currentFreq_.load() << "\n";
                 response = oss.str();
             }
-            // ── set_mode / get_mode — respuesta mínima ────────────────────────
-            else if (line[0] == 'M' || line == "m" || line == "\\get_mode" ||
-                     line.rfind("\\set_mode", 0) == 0) {
-                if (line[0] == 'M')
-                    response = "RPRT 0\n";
-                else
-                    response = "USB\n3000\nRPRT 0\n";
+            // ── set_mode: "M USB 3000" o "\set_mode USB 3000" ────────────────
+            else if ((line.size() > 2 && line[0] == 'M' && line[1] == ' ') ||
+                     line.rfind("\\set_mode ", 0) == 0)
+            {
+                auto sp1 = line.find(' ');
+                std::string rest = (sp1 != std::string::npos) ? line.substr(sp1 + 1) : "";
+                auto sp2 = rest.find(' ');
+                std::string mode      = (sp2 != std::string::npos) ? rest.substr(0, sp2) : rest;
+                int         passband  = 0;
+                if (sp2 != std::string::npos) {
+                    try { passband = std::stoi(rest.substr(sp2 + 1)); } catch (...) {}
+                }
+
+                if (!mode.empty()) {
+                    {
+                        std::lock_guard<std::mutex> lk(modeMutex_);
+                        currentMode_ = mode;
+                        if (passband > 0) currentPassband_ = passband;
+                    }
+                    if (onSetMode_) onSetMode_(mode, passband);
+                    dbgRig("set_mode: " + mode + " pb=" + std::to_string(passband));
+                }
+                response = "RPRT 0\n";
+            }
+            // ── get_mode: "m" o "\get_mode" ───────────────────────────────────
+            else if (line == "m" || line == "\\get_mode") {
+                std::string mode;
+                int passband;
+                {
+                    std::lock_guard<std::mutex> lk(modeMutex_);
+                    mode     = currentMode_;
+                    passband = currentPassband_;
+                }
+                response = mode + "\n" + std::to_string(passband) + "\nRPRT 0\n";
             }
             // ── dump_state — identificación mínima para que Hamlib acepte ────
             else if (line == "dump_state" || line.rfind("\\dump_state", 0) == 0) {
