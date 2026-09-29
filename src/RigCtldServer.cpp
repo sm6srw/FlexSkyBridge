@@ -138,7 +138,7 @@ void RigCtldServer::handleClient(uintptr_t clientSock) {
             // ── get_freq: "f" o "\get_freq" ──────────────────────────────────
             else if (line == "f" || line == "\\get_freq") {
                 std::ostringstream oss;
-                oss << (long long)currentFreq_.load() << "\n" << "RPRT 0\n";
+                oss << (long long)currentFreq_.load() << "\n";
                 response = oss.str();
             }
             // ── set_mode / get_mode — respuesta mínima ────────────────────────
