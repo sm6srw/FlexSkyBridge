@@ -28,7 +28,7 @@ static std::vector<SoapySDR::Kwargs> findFlex(const SoapySDR::Kwargs& args) {
     SoapySDR::Kwargs dev;
     dev["driver"]  = "FlexSkyBridge";
     dev["label"]   = "Flex 6600 via FlexSkyBridge";
-    dev["radio"]   = "192.168.0.208";
+    dev["radio"]   = "192.168.194.94";
     dev["channel"] = "1";
     dev["udpport"] = "7891";
     results.push_back(dev);
