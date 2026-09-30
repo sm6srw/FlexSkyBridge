@@ -238,7 +238,10 @@ void RigCtldServer::handleClient(uintptr_t clientSock) {
             }
             // ── PTT ───────────────────────────────────────────────────────────
             else if (line == "t" || line == "\\get_ptt") {
-                response = "PTT:" + std::string(currentPtt_.load() ? "1" : "0") + "\nRPRT 0\n";
+                // Respuesta estandar de Hamlib rigctld: solo el valor (0|1),
+                // sin prefijo. Un prefijo como "PTT:" hace que el parser de
+                // SkyRoof no reconozca la respuesta y siempre lea PTT=False.
+                response = std::string(currentPtt_.load() ? "1" : "0") + "\nRPRT 0\n";
                 dbgRig(std::string("get_ptt: ") + (currentPtt_.load() ? "ON" : "OFF"));
             }
             else if ((line.size() > 2 && line[0] == 'T' && line[1] == ' ') ||
