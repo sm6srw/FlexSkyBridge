@@ -160,7 +160,7 @@ void RigCtldServer::handleClient(uintptr_t clientSock) {
             }
             // ── get_split_vfo: "s" o "\get_split_vfo" ───────────────────────────
             else if (line == "s" || line == "\\get_split_vfo") {
-                response = std::string(splitEnabled_.load() ? "1" : "0") + "\nVFOB\nRPRT 0\n";
+                response = std::string(splitEnabled_.load() ? "1" : "0") + "\nVFOB\n";
             }
             // ── set_mode: "M USB 3000" o "\set_mode USB 3000" ────────────────
             else if ((line.size() > 2 && line[0] == 'M' && line[1] == ' ') ||
@@ -195,7 +195,7 @@ void RigCtldServer::handleClient(uintptr_t clientSock) {
                     mode     = currentMode_;
                     passband = currentPassband_;
                 }
-                response = mode + "\n" + std::to_string(passband) + "\nRPRT 0\n";
+                response = mode + "\n" + std::to_string(passband) + "\n";
             }
             // ── dump_state — identificación completa para que Hamlib la acepte ──
             else if (line == "dump_state" || line.rfind("\\dump_state", 0) == 0) {
@@ -231,7 +231,7 @@ void RigCtldServer::handleClient(uintptr_t clientSock) {
             }
             // ── get_vfo / set_vfo ─────────────────────────────────────────────
             else if (line == "v" || line == "\\get_vfo") {
-                response = "VFOA\nRPRT 0\n";
+                response = "VFOA\n";
             }
             else if (line[0] == 'V' || line.rfind("\\set_vfo", 0) == 0) {
                 response = "RPRT 0\n";
