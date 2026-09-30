@@ -107,12 +107,25 @@ En SkyRoof, selecciona como SDR device:
 | `radio` | IP del FlexRadio | `192.168.0.208` |
 | `channel` | Canal DAX IQ (1-8) | `1` |
 | `udpport` | Puerto UDP para recibir IQ | `7891` |
-| `rigctld` | Puerto rigctld Doppler | `4532` |
+| `rigctld` | Puerto rigctld Doppler (RX/downlink) | `4532` |
+| `rigctldtx` | Puerto rigctld dedicado a TX/uplink | `4534` |
 | `rotctldexe` | Ruta a rotctld.exe | `C:\hamlib\bin\rotctld.exe` |
 | `rotctldargs` | Argumentos de rotctld | `-m 3 -r 127.0.0.1:4533` |
+| `vantenna` | Antena/transverter para banda V (2m/VHF) | `XVTA` |
+| `uantenna` | Antena/transverter para banda U (70cm/UHF) | `XVTB` |
+
+`vantenna`/`uantenna` también pueden cambiarse en caliente desde el panel de
+**Settings** de SoapySDR (SkyRoof lo expone en la configuración del dispositivo),
+con las opciones disponibles en la lista de antenas del dispositivo. El valor
+elegido se persiste en `C:\RADIO\FlexSkyBridge_settings.ini` y sobrevive a
+reinicios. Al conmutar entre un transpondedor V/U y uno U/V, el driver detecta
+automáticamente la banda de la frecuencia sintonizada en cada slice (RX/TX) y
+asigna la antena configurada para esa banda.
 
 En SkyRoof configura también:
-- **CAT / Rig control** → rigctld en `127.0.0.1:4532`
+- **CAT / Rig control (RX)** → rigctld en `127.0.0.1:4532`
+- **CAT / Rig control (TX / uplink)** → rigctld en `127.0.0.1:4534` (conexión independiente,
+  no split-VFO — SkyRoof espera una segunda conexión CAT simple para el uplink)
 - **Rotor** → rotctld en `127.0.0.1:4533`
 - **Sample rate**: 192000 Hz · **Format**: CF32
 

@@ -27,6 +27,26 @@ namespace {
         static WinsockInit inst;
         return inst;
     }
+
+    // ── Traducción de nombres de modo Hamlib ↔ Flex ────────────────────────────
+    // Los clientes CAT (SkyRoof, rigctl, etc.) usan la nomenclatura de Hamlib
+    // (p. ej. "FM_D" para FM digital, "USB_D"/"LSB_D" para USB/LSB digital),
+    // mientras que el radio Flex espera sus propios nombres de modo de slice
+    // (p. ej. "DFM", "DIGU", "DIGL"). Traducimos en ambas direcciones para que
+    // el modo se refleje correctamente en ambos lados.
+    std::string hamlibToFlexMode(const std::string& mode) {
+        if (mode == "FM_D")  return "DFM";
+        if (mode == "USB_D") return "DIGU";
+        if (mode == "LSB_D") return "DIGL";
+        return mode;
+    }
+
+    std::string flexToHamlibMode(const std::string& mode) {
+        if (mode == "DFM")  return "FM_D";
+        if (mode == "DIGU") return "USB_D";
+        if (mode == "DIGL") return "LSB_D";
+        return mode;
+    }
 }
 
 static void dbgSdr(const std::string& msg) {
@@ -105,6 +125,8 @@ void SmartSDRClient::setSliceFrequency(int sliceIdx, double freqHz) {
     static int tuneCount = 0;
     ++tuneCount;
 
+    applyAntennaForBand(sliceIdx, freqHz, false);
+
     // slice tune mueve el slice Y el pan, y funciona entre clientes
     std::ostringstream cmd;
     cmd << "slice tune " << sliceIdx
@@ -124,7 +146,7 @@ void SmartSDRClient::setSliceFrequency(int sliceIdx, double freqHz) {
 // ─────────────────────────────────────────────────────────────────────────────
 void SmartSDRClient::setSliceMode(int sliceIdx, const std::string& mode) {
     std::ostringstream cmd;
-    cmd << "slice set " << sliceIdx << " mode=" << mode;
+    cmd << "slice set " << sliceIdx << " mode=" << hamlibToFlexMode(mode);
 
     dbgSdr("slice set mode: " + cmd.str());
     sendCommand(cmd.str());
@@ -136,6 +158,103 @@ void SmartSDRClient::setSliceMode(int sliceIdx, const std::string& mode) {
 std::string SmartSDRClient::getSliceMode() const {
     std::lock_guard<std::mutex> lock(modeMutex_);
     return currentMode_;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Control de frecuencia TX — segundo slice/panadapter independiente del de RX
+// ─────────────────────────────────────────────────────────────────────────────
+void SmartSDRClient::setTxFrequency(double freqHz) {
+    int idx = txSliceIdx_.load();
+    if (idx < 0) {
+        dbgSdr("WARN: setTxFrequency sin slice TX detectado, frecuencia descartada");
+        return;
+    }
+
+    applyAntennaForBand(idx, freqHz, true);
+
+    double freqMHz = freqHz / 1e6;
+    std::ostringstream cmd;
+    cmd << "slice tune " << idx
+        << " " << std::fixed << std::setprecision(6) << freqMHz
+        << " autopan=1";
+
+    dbgSdr("slice tune (TX) idx=" + std::to_string(idx) + ": " + cmd.str());
+    sendCommand(cmd.str());
+
+    currentTxFreqHz_ = freqHz;
+}
+
+double SmartSDRClient::getTxFrequency() const {
+    return currentTxFreqHz_.load();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Control de modo TX — segundo slice/panadapter independiente del de RX
+// ─────────────────────────────────────────────────────────────────────────────
+void SmartSDRClient::setTxMode(const std::string& mode) {
+    int idx = txSliceIdx_.load();
+    if (idx < 0) {
+        dbgSdr("WARN: setTxMode sin slice TX detectado, modo descartado");
+        return;
+    }
+
+    std::ostringstream cmd;
+    cmd << "slice set " << idx << " mode=" << hamlibToFlexMode(mode);
+
+    dbgSdr("slice set mode (TX): " + cmd.str());
+    sendCommand(cmd.str());
+
+    std::lock_guard<std::mutex> lock(txModeMutex_);
+    currentTxMode_ = mode;
+}
+
+std::string SmartSDRClient::getTxMode() const {
+    std::lock_guard<std::mutex> lock(txModeMutex_);
+    return currentTxMode_;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Configura qué antena/transverter usar para cada banda (modo V y modo U).
+// Persistido/expuesto por FlexDevice a través de la settings API de SoapySDR.
+// ─────────────────────────────────────────────────────────────────────────────
+void SmartSDRClient::setBandAntennas(const std::string& vAntenna, const std::string& uAntenna) {
+    if (!vAntenna.empty()) vBandAntenna_ = vAntenna;
+    if (!uAntenna.empty()) uBandAntenna_ = uAntenna;
+    // Forzar reaplicación en la próxima sintonización, por si el mapeo cambió
+    // en caliente mientras ya se había aplicado una antena a los slices.
+    rxAntennaApplied_.clear();
+    txAntennaApplied_.clear();
+    dbgSdr("setBandAntennas: V=" + vBandAntenna_ + " U=" + uBandAntenna_);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Selección automática de antena por banda — banda VHF/2m usa la antena
+// configurada para modo V, banda UHF/70cm usa la configurada para modo U,
+// según la frecuencia que se sintonice en cada slice. Se fija tanto rxant
+// como txant del slice al mismo transverter, aunque uno de los dos lados no
+// se use en ese slice — así cada panadapter queda consistentemente ligado a
+// un único transverter.
+// ─────────────────────────────────────────────────────────────────────────────
+void SmartSDRClient::applyAntennaForBand(int sliceIdx, double freqHz, bool isTx) {
+    double freqMHz = freqHz / 1e6;
+
+    std::string antenna;
+    if (freqMHz >= 144.0 && freqMHz < 148.0)      antenna = vBandAntenna_; // 2m / VHF
+    else if (freqMHz >= 430.0 && freqMHz < 440.0) antenna = uBandAntenna_; // 70cm / UHF
+    else return; // fuera de las bandas conocidas, no tocar la antena
+
+
+    std::string& applied = isTx ? txAntennaApplied_ : rxAntennaApplied_;
+    if (applied == antenna) return; // ya aplicada, evitar spam de comandos
+
+    std::ostringstream cmd;
+    cmd << "slice set " << sliceIdx
+        << " rxant=" << antenna
+        << " txant=" << antenna;
+    dbgSdr(std::string("slice set rxant/txant (banda auto, ") +
+           (isTx ? "TX" : "RX") + "): " + cmd.str());
+    sendCommand(cmd.str());
+    applied = antenna;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -282,41 +401,82 @@ void SmartSDRClient::parseLine(const std::string& line) {
 
         // ── Slice — capturar frecuencia, modo y pan ID ───────────────────────
         if (payload.rfind("slice ", 0) == 0) {
-            // Frecuencia Doppler
+            // Índice de slice: "slice <n> ..."
+            int sliceIdx = -1;
+            {
+                auto idxStart = 6u;
+                auto idxEnd   = payload.find(' ', idxStart);
+                try {
+                    sliceIdx = std::stoi(payload.substr(idxStart,
+                        idxEnd == std::string::npos ? idxEnd : idxEnd - idxStart));
+                } catch (...) {}
+            }
+
+            // El slice TX vive en su propio panadapter (segundo slice, índice
+            // distinto de 0/RX). No usamos el flag "tx=1": ese flag marca cuál
+            // slice está actualmente transmitiendo y por defecto apunta al
+            // slice A (índice 0), que es el mismo que usamos para RX — usarlo
+            // provocaba que setTxFrequency() sintonizara siempre el slice A.
+            if (sliceIdx > 0 && txSliceIdx_.load() < 0) {
+                txSliceIdx_ = sliceIdx;
+                dbgSdr("Slice TX detectado (2º panadapter): idx=" + std::to_string(sliceIdx));
+            }
+
+            bool isKnownTxSlice = (sliceIdx >= 0 && sliceIdx == txSliceIdx_.load());
+
+            // Frecuencia Doppler / RF
             auto freqPos = payload.find("RF_frequency=");
             if (freqPos != std::string::npos) {
                 try {
                     double freqMHz = std::stod(payload.substr(freqPos + 13));
-                    if (freqCallback_) freqCallback_(freqMHz * 1e6);
+                    if (isKnownTxSlice) {
+                        currentTxFreqHz_ = freqMHz * 1e6;
+                        if (txFreqCallback_) txFreqCallback_(freqMHz * 1e6);
+                    } else {
+                        if (freqCallback_) freqCallback_(freqMHz * 1e6);
+                    }
                 } catch (...) {}
             }
 
-            // Modo (USB/LSB/CW/AM/FM/DIGU/DIGL/...)
+            // Modo (USB/LSB/CW/AM/FM/DIGU/DIGL/DFM/...)
             auto modePos = payload.find("mode=");
             if (modePos != std::string::npos) {
                 auto start = modePos + 5;
                 auto end   = payload.find(' ', start);
-                std::string mode = payload.substr(start,
-                    end == std::string::npos ? end : end - start);
+                std::string mode = flexToHamlibMode(payload.substr(start,
+                    end == std::string::npos ? end : end - start));
                 if (!mode.empty()) {
-                    {
-                        std::lock_guard<std::mutex> lock(modeMutex_);
-                        currentMode_ = mode;
+                    if (isKnownTxSlice) {
+                        {
+                            std::lock_guard<std::mutex> lock(txModeMutex_);
+                            currentTxMode_ = mode;
+                        }
+                        if (txModeCallback_) txModeCallback_(mode);
+                    } else {
+                        {
+                            std::lock_guard<std::mutex> lock(modeMutex_);
+                            currentMode_ = mode;
+                        }
+                        if (modeCallback_) modeCallback_(mode);
                     }
-                    if (modeCallback_) modeCallback_(mode);
                 }
             }
 
-            // Pan ID — extraído del mensaje de slice (siempre disponible)
-            if (firstPanId_.empty()) {
-                auto panPos = payload.find(" pan=");
-                if (panPos != std::string::npos) {
-                    auto start = panPos + 5;
-                    auto end   = payload.find(' ', start);
-                    std::string panCandidate = payload.substr(start,
-                        end == std::string::npos ? end : end - start);
-                    // Solo aceptar si es un handle válido (0x40000000 etc)
-                    if (panCandidate.rfind("0x", 0) == 0 && panCandidate != "0x0") {
+            // Pan ID — extraído del mensaje de slice
+            auto panPos = payload.find(" pan=");
+            if (panPos != std::string::npos) {
+                auto start = panPos + 5;
+                auto end   = payload.find(' ', start);
+                std::string panCandidate = payload.substr(start,
+                    end == std::string::npos ? end : end - start);
+                // Solo aceptar si es un handle válido (0x40000000 etc)
+                if (panCandidate.rfind("0x", 0) == 0 && panCandidate != "0x0") {
+                    if (isKnownTxSlice) {
+                        if (txPanId_.empty()) {
+                            txPanId_ = panCandidate;
+                            dbgSdr("txPanId capturado desde slice TX: " + txPanId_);
+                        }
+                    } else if (firstPanId_.empty()) {
                         firstPanId_ = panCandidate;
                         dbgSdr("firstPanId capturado desde slice: " + firstPanId_);
                     }

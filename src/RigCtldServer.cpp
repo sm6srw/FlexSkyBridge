@@ -17,10 +17,10 @@ static void dbgRig(const std::string& msg) {
 void RigCtldServer::start(uint16_t port, FreqCallback onSetFreq, ModeCallback onSetMode) {
     if (running_.load()) return;
 
-    port_       = port;
-    onSetFreq_  = std::move(onSetFreq);
-    onSetMode_  = std::move(onSetMode);
-    running_    = true;
+    port_        = port;
+    onSetFreq_   = std::move(onSetFreq);
+    onSetMode_   = std::move(onSetMode);
+    running_     = true;
 
     listenThread_ = std::thread(&RigCtldServer::listenLoop, this);
     dbgRig("Servidor rigctld arrancado en puerto " + std::to_string(port_));
@@ -148,6 +148,18 @@ void RigCtldServer::handleClient(uintptr_t clientSock) {
                 oss << (long long)currentFreq_.load() << "\n";
                 response = oss.str();
             }
+            // ── set_split_vfo: "S 1 VFOB" o "\set_split_vfo 1 VFOB" ────────────
+            else if ((line.size() > 2 && line[0] == 'S' && line[1] == ' ') ||
+                     line.rfind("\\set_split_vfo ", 0) == 0)
+            {
+                splitEnabled_ = (line.find('1') != std::string::npos);
+                dbgRig("set_split_vfo: " + std::string(splitEnabled_.load() ? "ON" : "OFF"));
+                response = "RPRT 0\n";
+            }
+            // ── get_split_vfo: "s" o "\get_split_vfo" ───────────────────────────
+            else if (line == "s" || line == "\\get_split_vfo") {
+                response = std::string(splitEnabled_.load() ? "1" : "0") + "\nVFOB\nRPRT 0\n";
+            }
             // ── set_mode: "M USB 3000" o "\set_mode USB 3000" ────────────────
             else if ((line.size() > 2 && line[0] == 'M' && line[1] == ' ') ||
                      line.rfind("\\set_mode ", 0) == 0)
@@ -183,7 +195,7 @@ void RigCtldServer::handleClient(uintptr_t clientSock) {
                 }
                 response = mode + "\n" + std::to_string(passband) + "\nRPRT 0\n";
             }
-            // ── dump_state — identificación mínima para que Hamlib acepte ────
+            // ── dump_state — identificación completa para que Hamlib la acepte ──
             else if (line == "dump_state" || line.rfind("\\dump_state", 0) == 0) {
                 response =
                     "0\n"          // protocol version
@@ -191,13 +203,28 @@ void RigCtldServer::handleClient(uintptr_t clientSock) {
                     "2\n"          // ITU region
                     // RX freq ranges: min max modes low_power high_power vfo ant
                     "100000 6000000000 0x1ff -1 -1 0x10000003 0x3\n"
-                    "0 0 0 0 0 0 0\n"
-                    // TX freq ranges
-                    "0 0 0 0 0 0 0\n"
-                    "0 0 0 0 0 0 0\n"
+                    "0 0 0 0 0 0 0\n"                              // terminador RX
+                    // TX freq ranges — antes en 0, sin esto Hamlib rechaza split/TX
+                    "100000 6000000000 0x1ff 1 100 0x20000003 0x3\n"
+                    "0 0 0 0 0 0 0\n"                              // terminador TX
                     // tuning steps
-                    "0 0\n"
-                    "0 0\n"
+                    "0x1ff 1\n"
+                    "0 0\n"                                        // terminador steps
+                    // filtros
+                    "0x1ff 2400\n"
+                    "0 0\n"                                        // terminador filtros
+                    "0\n"          // max_rit
+                    "0\n"          // max_xit
+                    "0\n"          // max_ifshift
+                    "0\n"          // announces
+                    "\n"           // preamp list (ninguno)
+                    "\n"           // attenuator list (ninguno)
+                    "0\n"          // has_get_func
+                    "0\n"          // has_set_func
+                    "0\n"          // has_get_level
+                    "0\n"          // has_set_level
+                    "0\n"          // has_get_parm
+                    "0\n"          // has_set_parm
                     "RPRT 0\n";
             }
             // ── get_vfo / set_vfo ─────────────────────────────────────────────

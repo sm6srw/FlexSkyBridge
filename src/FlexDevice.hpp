@@ -26,10 +26,16 @@ public:
     size_t getNumChannels(const int dir) const override;
 
     // ── Antenas ───────────────────────────────────────────────────────────────
+    // Panadapter 1 (RX) arranca en modo V/U como RX en 70cm/UHF, así que su
+    // selector de antena controla qué transverter se usa para la banda U.
+    // Panadapter 2 (TX) arranca como TX en 2m/VHF, así que su selector
+    // controla la banda V. Estos mismos valores son los que
+    // SmartSDRClient::applyAntennaForBand usa automáticamente al detectar la
+    // banda de la frecuencia sintonizada en cada slice.
     std::vector<std::string> listAntennas(const int dir,
                                           const size_t ch) const override;
     void        setAntenna(const int dir, const size_t ch,
-                           const std::string& name) override {}
+                           const std::string& name) override;
     std::string getAntenna(const int dir, const size_t ch) const override;
 
     // ── Sample rate ───────────────────────────────────────────────────────────
@@ -106,6 +112,14 @@ public:
                      const bool automatic) override {}
     bool getDCOffsetMode(const int dir, const size_t ch) const override { return true; }
 
+    // ── Settings — antenas por banda (V/U) ───────────────────────────────────────
+    // Permite elegir qué transverter/antena (de listAntennas) usar para el modo
+    // V (2m/VHF) y para el modo U (70cm/UHF). Se persiste en el archivo .config
+    // que SoapySDR guarda por dispositivo (device settings cache).
+    SoapySDR::ArgInfoList getSettingInfo(void) const override;
+    void        writeSetting(const std::string& key, const std::string& value) override;
+    std::string readSetting(const std::string& key) const override;
+
 
 private:
     void startRotctld();
@@ -119,12 +133,25 @@ private:
     double      currentSampleRate_{ 96000.0 };
     std::string currentAntenna_   { "ANT1" };
     std::string currentMode_      { "USB" };
+    double      currentTxFreqHz_  { 145e6 };
+    std::string currentTxMode_    { "USB" };
+
+    // ── Antenas por banda (V/U) ─────────────────────────────────────────────────
+    // Punto de partida hardcoded para un transpondedor V/U: panadapter 1 (RX)
+    // recibe en 70cm/UHF, panadapter 2 (TX) transmite en 2m/VHF.
+    std::string vBandAntenna_{ "XVTA" };
+    std::string uBandAntenna_{ "XVTB" };
 
     std::unique_ptr<SmartSDRClient> smartsdr_;
     std::unique_ptr<DaxIQReceiver>  daxReceiver_;
     std::unique_ptr<RigCtldServer>  rigctld_;
+    // Servidor rigctld independiente para TX — SkyRoof (y la mayoría de
+    // trackers satelitales) esperan una segunda conexión CAT simple para el
+    // uplink en vez de split-VFO sobre la misma conexión.
+    std::unique_ptr<RigCtldServer>  rigctldTx_;
 
     uint16_t          rigctldPort_{ 4532 };
+    uint16_t          rigctldTxPort_{ 4534 };
     std::atomic<bool> streaming_{ false };
 
     // ── rotctld (control de rotor via hamlib) ─────────────────────────────────

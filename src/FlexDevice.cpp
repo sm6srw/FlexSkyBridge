@@ -7,6 +7,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <map>
 
 #define WIN32_LEAN_AND_MEAN
 #include <winsock2.h>
@@ -18,27 +19,81 @@ static void dbg(const std::string& msg) {
     log.close();
 }
 
+// ── Persistencia simple de settings (antenas por banda V/U) ─────────────────
+// Se guarda en un archivo INI muy sencillo junto al log de debug, así el
+// valor elegido en la UI de settings de SoapySDR (SoapySDRUtil / apps que
+// llaman a writeSetting) sobrevive a reinicios del proceso.
+static const char* kSettingsFile = "C:\\RADIO\\FlexSkyBridge_settings.ini";
+
+static std::map<std::string, std::string> loadSettingsFile() {
+    std::map<std::string, std::string> result;
+    std::ifstream in(kSettingsFile);
+    std::string line;
+    while (std::getline(in, line)) {
+        auto eq = line.find('=');
+        if (eq == std::string::npos) continue;
+        result[line.substr(0, eq)] = line.substr(eq + 1);
+    }
+    return result;
+}
+
+static void saveSettingsFile(const std::map<std::string, std::string>& settings) {
+    std::ofstream out(kSettingsFile, std::ios::trunc);
+    for (const auto& kv : settings)
+        out << kv.first << "=" << kv.second << "\n";
+}
+
+static void persistSetting(const std::string& key, const std::string& value) {
+    auto settings = loadSettingsFile();
+    settings[key] = value;
+    saveSettingsFile(settings);
+}
+
 FlexDevice::FlexDevice(const SoapySDR::Kwargs& args) {
     dbg("=== Constructor llamado ===");
-    radioIP_     = (args.count("radio")       ? args.at("radio")       : "192.168.0.208");
-    daxChannel_  = (args.count("channel")     ? std::stoi(args.at("channel"))  : 1);
-    udpPort_     = (args.count("udpport")     ? std::stoi(args.at("udpport"))  : 7891);
-    rigctldPort_ = (args.count("rigctld")     ? std::stoi(args.at("rigctld"))  : 4532);
+    radioIP_       = (args.count("radio")       ? args.at("radio")       : "192.168.0.208");
+    daxChannel_    = (args.count("channel")     ? std::stoi(args.at("channel"))  : 1);
+    udpPort_       = (args.count("udpport")     ? std::stoi(args.at("udpport"))  : 7891);
+    rigctldPort_   = (args.count("rigctld")     ? std::stoi(args.at("rigctld"))  : 4532);
+    rigctldTxPort_ = (args.count("rigctldtx")   ? std::stoi(args.at("rigctldtx")): 4534);
     if (args.count("rotctldexe"))  rotctldExe_  = args.at("rotctldexe");
     if (args.count("rotctldargs")) rotctldArgs_ = args.at("rotctldargs");
+
+    // Cargar antenas V/U persistidas, si existen; los args del constructor
+    // (si se pasan) tienen prioridad sobre el valor guardado.
+    auto savedSettings = loadSettingsFile();
+    if (savedSettings.count("v_antenna")) vBandAntenna_ = savedSettings.at("v_antenna");
+    if (savedSettings.count("u_antenna")) uBandAntenna_ = savedSettings.at("u_antenna");
+    if (args.count("vantenna")) vBandAntenna_ = args.at("vantenna");
+    if (args.count("uantenna")) uBandAntenna_ = args.at("uantenna");
+
     dbg("radioIP=" + radioIP_ + " canal=" + std::to_string(daxChannel_) +
         " udpPort=" + std::to_string(udpPort_) +
         " rigctldPort=" + std::to_string(rigctldPort_) +
+        " rigctldTxPort=" + std::to_string(rigctldTxPort_) +
         " rotctldExe=" + rotctldExe_ +
-        " rotctldArgs=" + rotctldArgs_);
+        " rotctldArgs=" + rotctldArgs_ +
+        " vAntenna=" + vBandAntenna_ +
+        " uAntenna=" + uBandAntenna_);
 
     smartsdr_    = std::make_unique<SmartSDRClient>();
     daxReceiver_ = std::make_unique<DaxIQReceiver>();
     rigctld_     = std::make_unique<RigCtldServer>();
+    rigctldTx_   = std::make_unique<RigCtldServer>();
+
+    smartsdr_->setBandAntennas(vBandAntenna_, uBandAntenna_);
 
     smartsdr_->onFrequencyChanged([this](double hz) {
         currentFreqHz_ = hz;
         rigctld_->setCurrentFreq(hz);
+    });
+    smartsdr_->onTxFrequencyChanged([this](double hz) {
+        currentTxFreqHz_ = hz;
+        rigctldTx_->setCurrentFreq(hz);
+    });
+    smartsdr_->onTxModeChanged([this](const std::string& mode) {
+        currentTxMode_ = mode;
+        rigctldTx_->setCurrentMode(mode);
     });
     dbg("Constructor completado OK");
 }
@@ -46,6 +101,7 @@ FlexDevice::FlexDevice(const SoapySDR::Kwargs& args) {
 FlexDevice::~FlexDevice() {
     dbg("=== Destructor llamado ===");
     rigctld_->stop();
+    rigctldTx_->stop();
     if (streaming_.load()) daxReceiver_->stop();
     if (smartsdr_->isConnected()) smartsdr_->disconnect();
     dbg("Destructor completado");
@@ -62,7 +118,7 @@ SoapySDR::Kwargs FlexDevice::getHardwareInfo() const {
 }
 
 size_t FlexDevice::getNumChannels(const int dir) const {
-    return (dir == SOAPY_SDR_RX) ? 1 : 0;
+    return (dir == SOAPY_SDR_RX || dir == SOAPY_SDR_TX) ? 1 : 0;
 }
 
 std::vector<std::string> FlexDevice::listAntennas(const int dir,
@@ -70,8 +126,73 @@ std::vector<std::string> FlexDevice::listAntennas(const int dir,
     return { "ANT1", "ANT2", "RX_A", "RX_B", "XVTA", "XVTB" };
 }
 
+// El selector de antena de SkyRoof es por canal (RX/TX), pero nuestra
+// selección real de antena es por banda (V/U), no por canal — porque al
+// cambiar entre un transpondedor V/U y uno U/V, RX y TX intercambian de
+// banda. Usamos el canal solo como punto de entrada a la UI: en el punto de
+// partida (V/U) el canal RX representa la banda U y el canal TX la banda V.
+void FlexDevice::setAntenna(const int dir, const size_t ch, const std::string& name) {
+    if (dir == SOAPY_SDR_TX) {
+        vBandAntenna_ = name;
+        persistSetting("v_antenna", name);
+        dbg("setAntenna(TX/banda V)=" + name);
+    } else {
+        uBandAntenna_ = name;
+        persistSetting("u_antenna", name);
+        dbg("setAntenna(RX/banda U)=" + name);
+    }
+    smartsdr_->setBandAntennas(vBandAntenna_, uBandAntenna_);
+}
+
 std::string FlexDevice::getAntenna(const int dir, const size_t ch) const {
-    return currentAntenna_;
+    return (dir == SOAPY_SDR_TX) ? vBandAntenna_ : uBandAntenna_;
+}
+
+// ── Settings — antenas por banda (V/U) ───────────────────────────────────────
+SoapySDR::ArgInfoList FlexDevice::getSettingInfo(void) const {
+    SoapySDR::ArgInfoList infos;
+
+    auto antennaOptions = listAntennas(SOAPY_SDR_RX, 0);
+
+    SoapySDR::ArgInfo vAnt;
+    vAnt.key         = "v_antenna";
+    vAnt.value       = vBandAntenna_;
+    vAnt.name        = "V band antenna (2m)";
+    vAnt.description = "Antenna/transverter used when the slice frequency is in the V (2m/VHF) band.";
+    vAnt.type        = SoapySDR::ArgInfo::STRING;
+    vAnt.options     = antennaOptions;
+    infos.push_back(vAnt);
+
+    SoapySDR::ArgInfo uAnt;
+    uAnt.key         = "u_antenna";
+    uAnt.value       = uBandAntenna_;
+    uAnt.name        = "U band antenna (70cm)";
+    uAnt.description = "Antenna/transverter used when the slice frequency is in the U (70cm/UHF) band.";
+    uAnt.type        = SoapySDR::ArgInfo::STRING;
+    uAnt.options     = antennaOptions;
+    infos.push_back(uAnt);
+
+    return infos;
+}
+
+void FlexDevice::writeSetting(const std::string& key, const std::string& value) {
+    if (key == "v_antenna") {
+        vBandAntenna_ = value;
+        smartsdr_->setBandAntennas(vBandAntenna_, uBandAntenna_);
+        persistSetting("v_antenna", value);
+        dbg("writeSetting v_antenna=" + value);
+    } else if (key == "u_antenna") {
+        uBandAntenna_ = value;
+        smartsdr_->setBandAntennas(vBandAntenna_, uBandAntenna_);
+        persistSetting("u_antenna", value);
+        dbg("writeSetting u_antenna=" + value);
+    }
+}
+
+std::string FlexDevice::readSetting(const std::string& key) const {
+    if (key == "v_antenna") return vBandAntenna_;
+    if (key == "u_antenna") return uBandAntenna_;
+    return "";
 }
 
 // ── Sample rates — soportamos los rates que ofrece el DAX IQ de FlexRadio ────
@@ -106,6 +227,20 @@ void FlexDevice::setFrequency(const int dir, const size_t ch,
                                const SoapySDR::Kwargs& args) {
     static int freqCallCount = 0;
     ++freqCallCount;
+
+    if (dir == SOAPY_SDR_TX) {
+        dbg("setFrequency(TX) #" + std::to_string(freqCallCount) +
+            " freq=" + std::to_string(freq / 1e6) + " MHz" +
+            " connected=" + (smartsdr_->isConnected() ? "yes" : "NO"));
+
+        currentTxFreqHz_ = freq;
+        if (smartsdr_->isConnected())
+            smartsdr_->setTxFrequency(freq);
+        else
+            dbg("setFrequency(TX): radio NO conectado, frecuencia descartada");
+        return;
+    }
+
     dbg("setFrequency #" + std::to_string(freqCallCount) +
         " freq=" + std::to_string(freq / 1e6) + " MHz" +
         " connected=" + (smartsdr_->isConnected() ? "yes" : "NO"));
@@ -119,6 +254,8 @@ void FlexDevice::setFrequency(const int dir, const size_t ch,
 
 double FlexDevice::getFrequency(const int dir, const size_t ch,
                                  const std::string& name) const {
+    if (dir == SOAPY_SDR_TX)
+        return smartsdr_->isConnected() ? smartsdr_->getTxFrequency() : currentTxFreqHz_;
     return currentFreqHz_;
 }
 
@@ -258,6 +395,26 @@ int FlexDevice::activateStream(SoapySDR::Stream* stream,
                     smartsdr_->setSliceMode(0, mode);           
             });
 
+        // Arrancar un segundo servidor rigctld INDEPENDIENTE dedicado solo al
+        // uplink (TX). SkyRoof (y la mayoría de trackers satelitales) esperan
+        // una segunda conexión CAT "normal" (F/f) para el TX, no split-VFO
+        // sobre la misma conexión de RX.
+        dbg("Arrancando rigctld TX en puerto " + std::to_string(rigctldTxPort_));
+        rigctldTx_->start(rigctldTxPort_,
+            [this](double freqHz) {
+                dbg("rigctld TX set_freq: " + std::to_string(freqHz / 1e6) + " MHz");
+                currentTxFreqHz_ = freqHz;
+                rigctldTx_->setCurrentFreq(freqHz);
+                if (smartsdr_->isConnected())
+                    smartsdr_->setTxFrequency(freqHz);
+            },
+            [this](const std::string& mode, int /*passband*/) {
+                dbg("rigctld TX set_mode: " + mode);
+                currentTxMode_ = mode;
+                if (smartsdr_->isConnected())
+                    smartsdr_->setTxMode(mode);
+            });
+
         // Arrancar receptor UDP primero
         dbg("Arrancando DAX receiver en puerto " + std::to_string(udpPort_));
         daxReceiver_->start(udpPort_, "DAX IQ RX 1");
@@ -269,8 +426,10 @@ int FlexDevice::activateStream(SoapySDR::Stream* stream,
         dbg("startDaxIQStream completado");
 
         // Aplicar modo actual al radio una vez conectado
-        if (smartsdr_->isConnected())
+        if (smartsdr_->isConnected()) {
             smartsdr_->setSliceMode(0, currentMode_);
+            smartsdr_->setTxMode(currentTxMode_);
+        }
 
     } catch (const std::exception& e) {
         dbg("EXCEPCION en activateStream: " + std::string(e.what()));
@@ -290,6 +449,7 @@ int FlexDevice::deactivateStream(SoapySDR::Stream* stream,
     if (!streaming_.exchange(false)) return 0;
     stopRotctld();
     rigctld_->stop();
+    rigctldTx_->stop();
     daxReceiver_->stop();
     if (smartsdr_->isConnected()) smartsdr_->disconnect();
     dbg("deactivateStream OK");

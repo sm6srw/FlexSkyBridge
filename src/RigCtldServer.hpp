@@ -35,6 +35,7 @@ private:
     FreqCallback        onSetFreq_;
     ModeCallback        onSetMode_;
     std::atomic<double> currentFreq_{ 145e6 };
+    std::atomic<bool>   splitEnabled_{ false };
 
     std::mutex          modeMutex_;
     std::string         currentMode_{ "USB" };
