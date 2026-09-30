@@ -126,26 +126,33 @@ std::vector<std::string> FlexDevice::listAntennas(const int dir,
     return { "ANT1", "ANT2", "RX_A", "RX_B", "XVTA", "XVTB" };
 }
 
-// El selector de antena de SkyRoof es por canal (RX/TX), pero nuestra
-// selección real de antena es por banda (V/U), no por canal — porque al
-// cambiar entre un transpondedor V/U y uno U/V, RX y TX intercambian de
-// banda. Usamos el canal solo como punto de entrada a la UI: en el punto de
-// partida (V/U) el canal RX representa la banda U y el canal TX la banda V.
+// SkyRoof solo consulta/establece la antena del canal RX (confirmado en el
+// log de depuración: nunca llega un setAntenna(SOAPY_SDR_TX, ...)). El canal
+// TX no tiene stream SoapySDR real (setupStream rechaza TX), así que ese
+// selector de UI nunca se dispara para TX. Por tanto usamos el único campo
+// disponible (antena de RX) para editar la antena de la banda a la que esté
+// sintonizado el RX en cada momento — V (2m) o U (70cm) — en vez de partir
+// el ajuste en dos canales que SkyRoof no expone.
 void FlexDevice::setAntenna(const int dir, const size_t ch, const std::string& name) {
-    if (dir == SOAPY_SDR_TX) {
+    double freqMHz = currentFreqHz_ / 1e6;
+    bool isVBand = (freqMHz >= 144.0 && freqMHz < 148.0);
+
+    if (isVBand) {
         vBandAntenna_ = name;
         persistSetting("v_antenna", name);
-        dbg("setAntenna(TX/banda V)=" + name);
+        dbg("setAntenna(banda V, RX en 2m)=" + name);
     } else {
         uBandAntenna_ = name;
         persistSetting("u_antenna", name);
-        dbg("setAntenna(RX/banda U)=" + name);
+        dbg("setAntenna(banda U, RX en 70cm)=" + name);
     }
     smartsdr_->setBandAntennas(vBandAntenna_, uBandAntenna_);
 }
 
 std::string FlexDevice::getAntenna(const int dir, const size_t ch) const {
-    return (dir == SOAPY_SDR_TX) ? vBandAntenna_ : uBandAntenna_;
+    double freqMHz = currentFreqHz_ / 1e6;
+    bool isVBand = (freqMHz >= 144.0 && freqMHz < 148.0);
+    return isVBand ? vBandAntenna_ : uBandAntenna_;
 }
 
 // ── Settings — antenas por banda (V/U) ───────────────────────────────────────

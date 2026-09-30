@@ -129,7 +129,7 @@ private:
     int         daxChannel_{ 1 };
     uint16_t    udpPort_   { 7891 };
 
-    double      currentFreqHz_    { 145e6 };
+    double      currentFreqHz_    { 435e6 };
     double      currentSampleRate_{ 96000.0 };
     std::string currentAntenna_   { "ANT1" };
     std::string currentMode_      { "USB" };
