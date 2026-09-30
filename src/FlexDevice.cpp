@@ -96,6 +96,10 @@ FlexDevice::FlexDevice(const SoapySDR::Kwargs& args) {
         rigctldTx_->setCurrentMode(mode);
     });
     smartsdr_->onPttChanged([this](bool ptt) {
+        // SkyRoof abre dos conexiones rigctld (RX 4532 y TX 4534) y puede
+        // consultar get_ptt en cualquiera de las dos, asi que ambas deben
+        // reflejar el mismo estado real de PTT del radio.
+        rigctld_->setCurrentPtt(ptt);
         rigctldTx_->setCurrentPtt(ptt);
     });
     dbg("Constructor completado OK");
