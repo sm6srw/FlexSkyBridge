@@ -103,6 +103,11 @@ void SmartSDRClient::connect(const std::string& radioIP, uint16_t port) {
     sendCommand("sub display all");
     sendCommand("sub client all");
     sendCommand("sub tx all");
+    // El estado real de PTT (incluyendo MOX/mic local, no solo nuestro xmit)
+    // se reporta via el mensaje de status "interlock", campo state=. El
+    // mensaje "transmit" (sub tx all) no trae un campo transmit=0/1 util
+    // para esto -- por eso necesitamos esta suscripcion adicional.
+    sendCommand("sub interlock all");
 }
 
 void SmartSDRClient::disconnect() {
@@ -512,17 +517,24 @@ void SmartSDRClient::parseLine(const std::string& line) {
             }
         }
 
-        // -- Transmit - estado global de PTT reportado por el radio ---------
-        // "transmit ... transmit=<0|1>" refleja el PTT real, sea cual sea el
-        // origen (nuestro xmit, mic local, footswitch, etc.)
-        if (payload.rfind("transmit ", 0) == 0) {
-            auto pttPos = payload.find(" transmit=");
-            if (pttPos != std::string::npos) {
-                char val = payload[pttPos + 10];
-                bool newPtt = (val == '1');
+        // -- Interlock - estado real de PTT reportado por el radio ----------
+        // "interlock state=<...>" refleja el PTT real sea cual sea el origen
+        // (nuestro xmit, mic local, MOX del panel frontal, footswitch, etc.).
+        // Estados posibles incluyen RECEIVE, READY, PTT_REQUESTED,
+        // TRANSMITTING, TUNE, TX_INHIBIT, UNKEY_REQUESTED, TRANSMIT_DELAY...
+        // Consideramos "activo" solo TRANSMITTING y TUNE.
+        if (payload.rfind("interlock ", 0) == 0) {
+            auto statePos = payload.find("state=");
+            if (statePos != std::string::npos) {
+                auto start = statePos + 6;
+                auto end   = payload.find(' ', start);
+                std::string state = payload.substr(start,
+                    end == std::string::npos ? end : end - start);
+                bool newPtt = (state == "TRANSMITTING" || state == "TUNE");
+                dbgSdr("interlock state=" + state);
                 if (newPtt != pttActive_.load()) {
                     pttActive_ = newPtt;
-                    dbgSdr(std::string("PTT actualizado desde radio: ") + (newPtt ? "ON" : "OFF"));
+                    dbgSdr(std::string("PTT actualizado desde radio (interlock): ") + (newPtt ? "ON" : "OFF"));
                     if (pttCallback_) pttCallback_(newPtt);
                 }
             }
