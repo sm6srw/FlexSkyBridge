@@ -238,7 +238,8 @@ void RigCtldServer::handleClient(uintptr_t clientSock) {
             }
             // ── PTT ───────────────────────────────────────────────────────────
             else if (line == "t" || line == "\\get_ptt") {
-                response = std::string(currentPtt_.load() ? "1" : "0") + "\nRPRT 0\n";
+                response = "PTT:" + std::string(currentPtt_.load() ? "1" : "0") + "\nRPRT 0\n";
+                dbgRig(std::string("get_ptt: ") + (currentPtt_.load() ? "ON" : "OFF"));
             }
             else if ((line.size() > 2 && line[0] == 'T' && line[1] == ' ') ||
                      line.rfind("\\set_ptt ", 0) == 0)
