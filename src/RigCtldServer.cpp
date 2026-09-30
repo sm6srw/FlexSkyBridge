@@ -14,12 +14,14 @@ static void dbgRig(const std::string& msg) {
     log << "[rigctld] " << msg << "\n";
 }
 
-void RigCtldServer::start(uint16_t port, FreqCallback onSetFreq, ModeCallback onSetMode) {
+void RigCtldServer::start(uint16_t port, FreqCallback onSetFreq, ModeCallback onSetMode,
+                          PttCallback onSetPtt) {
     if (running_.load()) return;
 
     port_        = port;
     onSetFreq_   = std::move(onSetFreq);
     onSetMode_   = std::move(onSetMode);
+    onSetPtt_    = std::move(onSetPtt);
     running_     = true;
 
     listenThread_ = std::thread(&RigCtldServer::listenLoop, this);
@@ -236,9 +238,19 @@ void RigCtldServer::handleClient(uintptr_t clientSock) {
             }
             // ── PTT ───────────────────────────────────────────────────────────
             else if (line == "t" || line == "\\get_ptt") {
-                response = "0\nRPRT 0\n";
+                response = std::string(currentPtt_.load() ? "1" : "0") + "\nRPRT 0\n";
             }
-            else if (line[0] == 'T' || line.rfind("\\set_ptt", 0) == 0) {
+            else if ((line.size() > 2 && line[0] == 'T' && line[1] == ' ') ||
+                     line.rfind("\\set_ptt ", 0) == 0)
+            {
+                auto sp = line.find(' ');
+                bool ptt = false;
+                if (sp != std::string::npos) {
+                    try { ptt = (std::stoi(line.substr(sp + 1)) != 0); } catch (...) {}
+                }
+                currentPtt_ = ptt;
+                if (onSetPtt_) onSetPtt_(ptt);
+                dbgRig(std::string("set_ptt: ") + (ptt ? "ON" : "OFF"));
                 response = "RPRT 0\n";
             }
             // ── Comando "a" de SkyRoof: detecta si somos SkyCAT ────────────────

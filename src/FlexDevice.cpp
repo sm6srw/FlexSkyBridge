@@ -95,6 +95,9 @@ FlexDevice::FlexDevice(const SoapySDR::Kwargs& args) {
         currentTxMode_ = mode;
         rigctldTx_->setCurrentMode(mode);
     });
+    smartsdr_->onPttChanged([this](bool ptt) {
+        rigctldTx_->setCurrentPtt(ptt);
+    });
     dbg("Constructor completado OK");
 }
 
@@ -420,6 +423,11 @@ int FlexDevice::activateStream(SoapySDR::Stream* stream,
                 currentTxMode_ = mode;
                 if (smartsdr_->isConnected())
                     smartsdr_->setTxMode(mode);
+            },
+            [this](bool ptt) {
+                dbg(std::string("rigctld TX set_ptt: ") + (ptt ? "ON" : "OFF"));
+                if (smartsdr_->isConnected())
+                    smartsdr_->setPtt(ptt);
             });
 
         // Arrancar receptor UDP primero

@@ -11,6 +11,7 @@ public:
     using FreqCallback = std::function<void(double freqHz)>;
     using PortCallback = std::function<void(uint16_t port)>;
     using ModeCallback = std::function<void(const std::string& mode)>;
+    using PttCallback  = std::function<void(bool ptt)>;
 
     SmartSDRClient();
     ~SmartSDRClient();
@@ -46,11 +47,20 @@ public:
     std::string getTxMode() const;
     bool   hasTxSlice() const { return txSliceIdx_.load() >= 0; }
 
+    // ?? PTT ?????????????????????????????????????????????????????????
+    // Activa/desactiva la transmisión del slice TX ("xmit" en el protocolo
+    // SmartSDR). El estado real de PTT también puede cambiar por control local
+    // en la radio, por lo que se refleja vía onPttChanged() al recibir el
+    // status "transmit ... transmit=<0|1>" del radio.
+    void setPtt(bool ptt);
+    bool getPtt() const { return pttActive_.load(); }
+
     void onFrequencyChanged(FreqCallback cb)   { freqCallback_ = std::move(cb); }
     void onDaxIQPort(PortCallback cb)          { daxIQPortCallback_ = std::move(cb); }
     void onModeChanged(ModeCallback cb)        { modeCallback_ = std::move(cb); }
     void onTxFrequencyChanged(FreqCallback cb) { txFreqCallback_ = std::move(cb); }
     void onTxModeChanged(ModeCallback cb)      { txModeCallback_ = std::move(cb); }
+    void onPttChanged(PttCallback cb)          { pttCallback_ = std::move(cb); }
 
 private:
     void sendCommand(const std::string& cmd);
@@ -101,6 +111,10 @@ private:
     mutable std::mutex    txModeMutex_;
     std::string           currentTxMode_{ "USB" };
     ModeCallback          txModeCallback_;
+
+    // ?? Estado de PTT ????????????????????????????????????????????????
+    std::atomic<bool>     pttActive_{ false };
+    PttCallback           pttCallback_;
 
     std::string           radioIP_;
 };

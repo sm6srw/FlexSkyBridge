@@ -1,4 +1,4 @@
-#include "SmartSDRClient.hpp"
+﻿#include "SmartSDRClient.hpp"
 
 #include <stdexcept>
 #include <sstream>
@@ -28,7 +28,7 @@ namespace {
         return inst;
     }
 
-    // ── Traducción de nombres de modo Hamlib ↔ Flex ────────────────────────────
+    // ΓöÇΓöÇ Traducci├│n de nombres de modo Hamlib Γåö Flex ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     // Los clientes CAT (SkyRoof, rigctl, etc.) usan la nomenclatura de Hamlib
     // (p. ej. "FM_D" para FM digital, "USB_D"/"LSB_D" para USB/LSB digital),
     // mientras que el radio Flex espera sus propios nombres de modo de slice
@@ -102,6 +102,7 @@ void SmartSDRClient::connect(const std::string& radioIP, uint16_t port) {
     sendCommand("sub daxiq all");
     sendCommand("sub display all");
     sendCommand("sub client all");
+    sendCommand("sub tx all");
 }
 
 void SmartSDRClient::disconnect() {
@@ -115,10 +116,10 @@ void SmartSDRClient::disconnect() {
     if (rxThread_.joinable()) rxThread_.join();
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Control de frecuencia — mueve el centro del panadapter
+// ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// Control de frecuencia ΓÇö mueve el centro del panadapter
 // SkyRoof llama esto con la frecuencia Doppler corregida
-// ─────────────────────────────────────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 void SmartSDRClient::setSliceFrequency(int sliceIdx, double freqHz) {
     double freqMHz = freqHz / 1e6;
 
@@ -141,9 +142,9 @@ void SmartSDRClient::setSliceFrequency(int sliceIdx, double freqHz) {
     sendCommand(cmd.str());
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Control de modo — USB/LSB/CW/AM/FM/DIGU/DIGL/etc.
-// ─────────────────────────────────────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// Control de modo ΓÇö USB/LSB/CW/AM/FM/DIGU/DIGL/etc.
+// ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 void SmartSDRClient::setSliceMode(int sliceIdx, const std::string& mode) {
     std::ostringstream cmd;
     cmd << "slice set " << sliceIdx << " mode=" << hamlibToFlexMode(mode);
@@ -160,9 +161,9 @@ std::string SmartSDRClient::getSliceMode() const {
     return currentMode_;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Control de frecuencia TX — segundo slice/panadapter independiente del de RX
-// ─────────────────────────────────────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// Control de frecuencia TX ΓÇö segundo slice/panadapter independiente del de RX
+// ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 void SmartSDRClient::setTxFrequency(double freqHz) {
     int idx = txSliceIdx_.load();
     if (idx < 0) {
@@ -188,9 +189,9 @@ double SmartSDRClient::getTxFrequency() const {
     return currentTxFreqHz_.load();
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Control de modo TX — segundo slice/panadapter independiente del de RX
-// ─────────────────────────────────────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// Control de modo TX ΓÇö segundo slice/panadapter independiente del de RX
+// ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 void SmartSDRClient::setTxMode(const std::string& mode) {
     int idx = txSliceIdx_.load();
     if (idx < 0) {
@@ -213,28 +214,55 @@ std::string SmartSDRClient::getTxMode() const {
     return currentTxMode_;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Configura qué antena/transverter usar para cada banda (modo V y modo U).
-// Persistido/expuesto por FlexDevice a través de la settings API de SoapySDR.
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
+// Control de PTT - "xmit <0|1>" activa/desactiva la transmision en el radio.
+// El comando xmit es global (no por slice); el radio transmite en el slice
+// que tenga el flag "tx=1" marcado como activo, que por defecto suele ser el
+// slice RX (A) y no nuestro slice TX (segundo panadapter). Por eso, antes de
+// transmitir, forzamos "slice set <idx> tx=1" en nuestro slice TX para que el
+// radio realmente transmita ahi - si no, transmite en el slice equivocado y
+// SkyRoof ve el PTT caer casi al instante porque el estado no cuadra.
+// -----------------------------------------------------------------------------
+void SmartSDRClient::setPtt(bool ptt) {
+    int idx = txSliceIdx_.load();
+    if (ptt && idx >= 0) {
+        std::ostringstream txCmd;
+        txCmd << "slice set " << idx << " tx=1";
+        dbgSdr("slice set tx=1 (marcar slice TX activo): " + txCmd.str());
+        sendCommand(txCmd.str());
+    }
+
+    std::ostringstream cmd;
+    cmd << "xmit " << (ptt ? 1 : 0);
+
+    dbgSdr(std::string("xmit: ") + cmd.str());
+    sendCommand(cmd.str());
+
+    pttActive_ = ptt;
+}
+
+// ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// Configura qu├⌐ antena/transverter usar para cada banda (modo V y modo U).
+// Persistido/expuesto por FlexDevice a trav├⌐s de la settings API de SoapySDR.
+// ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 void SmartSDRClient::setBandAntennas(const std::string& vAntenna, const std::string& uAntenna) {
     if (!vAntenna.empty()) vBandAntenna_ = vAntenna;
     if (!uAntenna.empty()) uBandAntenna_ = uAntenna;
-    // Forzar reaplicación en la próxima sintonización, por si el mapeo cambió
-    // en caliente mientras ya se había aplicado una antena a los slices.
+    // Forzar reaplicaci├│n en la pr├│xima sintonizaci├│n, por si el mapeo cambi├│
+    // en caliente mientras ya se hab├¡a aplicado una antena a los slices.
     rxAntennaApplied_.clear();
     txAntennaApplied_.clear();
     dbgSdr("setBandAntennas: V=" + vBandAntenna_ + " U=" + uBandAntenna_);
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Selección automática de antena por banda — banda VHF/2m usa la antena
+// ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// Selecci├│n autom├ítica de antena por banda ΓÇö banda VHF/2m usa la antena
 // configurada para modo V, banda UHF/70cm usa la configurada para modo U,
-// según la frecuencia que se sintonice en cada slice. Se fija tanto rxant
+// seg├║n la frecuencia que se sintonice en cada slice. Se fija tanto rxant
 // como txant del slice al mismo transverter, aunque uno de los dos lados no
-// se use en ese slice — así cada panadapter queda consistentemente ligado a
-// un único transverter.
-// ─────────────────────────────────────────────────────────────────────────────
+// se use en ese slice ΓÇö as├¡ cada panadapter queda consistentemente ligado a
+// un ├║nico transverter.
+// ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 void SmartSDRClient::applyAntennaForBand(int sliceIdx, double freqHz, bool isTx) {
     double freqMHz = freqHz / 1e6;
 
@@ -257,9 +285,9 @@ void SmartSDRClient::applyAntennaForBand(int sliceIdx, double freqHz, bool isTx)
     applied = antenna;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 // Secuencia exacta de flexlib-go smartsdr-iqtransfer
-// ─────────────────────────────────────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 void SmartSDRClient::startDaxIQStream(int channel,
                                        uint16_t udpPort,
                                        int sampleRate)
@@ -276,7 +304,7 @@ void SmartSDRClient::startDaxIQStream(int channel,
         dbgSdr("WARN: clientId no disponible, continuando sin bind");
     }
     if (firstPanId_.empty()) {
-        dbgSdr("WARN: panId no disponible, el stream no tendrá panadapter");
+        dbgSdr("WARN: panId no disponible, el stream no tendr├í panadapter");
     }
 
     // Esperar a que lleguen los status de streams preexistentes (sub daxiq all)
@@ -300,7 +328,7 @@ void SmartSDRClient::startDaxIQStream(int channel,
         std::this_thread::sleep_for(std::chrono::milliseconds(300));
     }
 
-    // Crear stream DAX IQ — sintaxis exacta de flexlib-go
+    // Crear stream DAX IQ ΓÇö sintaxis exacta de flexlib-go
     sendCommand("stream create type=dax_iq daxiq_channel=" +
                 std::to_string(channel));
 
@@ -371,13 +399,13 @@ void SmartSDRClient::receiveLoop() {
     connected_ = false;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 // Parser de mensajes SmartSDR
-// ─────────────────────────────────────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 void SmartSDRClient::parseLine(const std::string& line) {
     if (line.empty()) return;
 
-    // Log de las primeras líneas
+    // Log de las primeras l├¡neas
     static int lineCount = 0;
     if (lineCount++ < 50)
         dbgSdr("RADIO>> " + line);
@@ -399,9 +427,9 @@ void SmartSDRClient::parseLine(const std::string& line) {
         if (pipePos == std::string::npos) return;
         std::string payload = line.substr(pipePos + 1);
 
-        // ── Slice — capturar frecuencia, modo y pan ID ───────────────────────
+        // ΓöÇΓöÇ Slice ΓÇö capturar frecuencia, modo y pan ID ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
         if (payload.rfind("slice ", 0) == 0) {
-            // Índice de slice: "slice <n> ..."
+            // ├ìndice de slice: "slice <n> ..."
             int sliceIdx = -1;
             {
                 auto idxStart = 6u;
@@ -412,14 +440,14 @@ void SmartSDRClient::parseLine(const std::string& line) {
                 } catch (...) {}
             }
 
-            // El slice TX vive en su propio panadapter (segundo slice, índice
-            // distinto de 0/RX). No usamos el flag "tx=1": ese flag marca cuál
-            // slice está actualmente transmitiendo y por defecto apunta al
-            // slice A (índice 0), que es el mismo que usamos para RX — usarlo
+            // El slice TX vive en su propio panadapter (segundo slice, ├¡ndice
+            // distinto de 0/RX). No usamos el flag "tx=1": ese flag marca cu├íl
+            // slice est├í actualmente transmitiendo y por defecto apunta al
+            // slice A (├¡ndice 0), que es el mismo que usamos para RX ΓÇö usarlo
             // provocaba que setTxFrequency() sintonizara siempre el slice A.
             if (sliceIdx > 0 && txSliceIdx_.load() < 0) {
                 txSliceIdx_ = sliceIdx;
-                dbgSdr("Slice TX detectado (2º panadapter): idx=" + std::to_string(sliceIdx));
+                dbgSdr("Slice TX detectado (2┬║ panadapter): idx=" + std::to_string(sliceIdx));
             }
 
             bool isKnownTxSlice = (sliceIdx >= 0 && sliceIdx == txSliceIdx_.load());
@@ -462,14 +490,14 @@ void SmartSDRClient::parseLine(const std::string& line) {
                 }
             }
 
-            // Pan ID — extraído del mensaje de slice
+            // Pan ID ΓÇö extra├¡do del mensaje de slice
             auto panPos = payload.find(" pan=");
             if (panPos != std::string::npos) {
                 auto start = panPos + 5;
                 auto end   = payload.find(' ', start);
                 std::string panCandidate = payload.substr(start,
                     end == std::string::npos ? end : end - start);
-                // Solo aceptar si es un handle válido (0x40000000 etc)
+                // Solo aceptar si es un handle v├ílido (0x40000000 etc)
                 if (panCandidate.rfind("0x", 0) == 0 && panCandidate != "0x0") {
                     if (isKnownTxSlice) {
                         if (txPanId_.empty()) {
@@ -484,7 +512,23 @@ void SmartSDRClient::parseLine(const std::string& line) {
             }
         }
 
-        // ── Primer cliente GUI ────────────────────────────────────────────────
+        // -- Transmit - estado global de PTT reportado por el radio ---------
+        // "transmit ... transmit=<0|1>" refleja el PTT real, sea cual sea el
+        // origen (nuestro xmit, mic local, footswitch, etc.)
+        if (payload.rfind("transmit ", 0) == 0) {
+            auto pttPos = payload.find(" transmit=");
+            if (pttPos != std::string::npos) {
+                char val = payload[pttPos + 10];
+                bool newPtt = (val == '1');
+                if (newPtt != pttActive_.load()) {
+                    pttActive_ = newPtt;
+                    dbgSdr(std::string("PTT actualizado desde radio: ") + (newPtt ? "ON" : "OFF"));
+                    if (pttCallback_) pttCallback_(newPtt);
+                }
+            }
+        }
+
+        // ΓöÇΓöÇ Primer cliente GUI ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
         if (payload.rfind("client ", 0) == 0 && firstClientId_.empty()) {
             auto cidPos = payload.find("client_id=");
             if (cidPos != std::string::npos) {
@@ -496,7 +540,7 @@ void SmartSDRClient::parseLine(const std::string& line) {
             }
         }
 
-        // ── Panadapter desde display pan ─────────────────────────────────────
+        // ΓöÇΓöÇ Panadapter desde display pan ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
         if (payload.rfind("display pan ", 0) == 0 && firstPanId_.empty()) {
             auto rest     = payload.substr(12);
             auto spacePos = rest.find(' ');
@@ -507,7 +551,7 @@ void SmartSDRClient::parseLine(const std::string& line) {
             }
         }
 
-        // ── Stream DAX IQ ─────────────────────────────────────────────────────
+        // ΓöÇΓöÇ Stream DAX IQ ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
         if (payload.find("type=dax_iq") != std::string::npos) {
             dbgSdr("STREAM DAX IQ: " + payload);
 
@@ -523,7 +567,7 @@ void SmartSDRClient::parseLine(const std::string& line) {
                 } catch (...) {}
             }
 
-            // Capturar stream preexistente al arrancar (solo si aún no tenemos uno)
+            // Capturar stream preexistente al arrancar (solo si a├║n no tenemos uno)
             if (payloadStreamId != 0 && existingDaxIQStreamId_.load() == 0
                 && daxIQStreamId_.load() == 0) {
                 existingDaxIQStreamId_ = payloadStreamId;
@@ -532,7 +576,7 @@ void SmartSDRClient::parseLine(const std::string& line) {
             }
 
             // Detectar si nuestro stream activo pierde el pan (endpoint=Not Assigned)
-            // y reasignarlo automáticamente
+            // y reasignarlo autom├íticamente
             if (payloadStreamId != 0
                 && payloadStreamId == daxIQStreamId_.load()
                 && payload.find("endpoint_type=Not Assigned") != std::string::npos
