@@ -12,6 +12,7 @@ Plugin SoapySDR para Windows que conecta
 - Habla directamente con el FlexRadio 6600 vía protocolo SmartSDR (TCP/4992) — sin necesidad de SmartSDR DAX ni smartsdr-iqtransfer
 - Recibe IQ a **192.000 Hz** vía UDP directo (paquetes VITA-49), sin latencia de driver de audio
 - Corrección Doppler en tiempo real via rigctld integrado (puerto 4532)
+- rigctld dedicado para TX/uplink (puerto 4534): frecuencia, modo, PTT y tono CTCSS
 - Control de rotor automático — lanza y cierra `rotctld` (hamlib) junto con el stream, enviando el tracking a PstRotator
 - Mueve automáticamente el slice y el panadapter de SmartSDR al cambiar de frecuencia
 - Compatible con AetherSDR u otros clientes SmartSDR funcionando simultáneamente
@@ -29,6 +30,7 @@ SkyRoof ──SoapySDR──►  rigctld :4532   →  slice tune TCP/4992 ──
 - **TCP/4992** — protocolo SmartSDR: crea el stream DAX IQ, mueve el slice con Doppler
 - **UDP/7891** — paquetes VITA-49 a 192 kHz directamente desde el radio
 - **Puerto 4532** — rigctld embebido: recibe correcciones Doppler de SkyRoof
+- **Puerto 4534** — rigctld TX embebido: frecuencia, modo, PTT y CTCSS del uplink
 - **Puerto 4533** — rotctld (hamlib): recibe Az/El de SkyRoof y los reenvía a PstRotator
 
 ## Requisitos
