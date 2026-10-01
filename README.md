@@ -177,9 +177,10 @@ Si necesitas apuntar a un PstRotator en otra máquina, pasa el parámetro en el 
 
 MIT — ver [LICENSE](LICENSE)
 
-## Autor
+## Autores
 
-EA5WA — [@ea5wa](https://github.com/ea5wa)
+- EA5WA — [@ea5wa](https://github.com/ea5wa)
+- NU1T / SM6SRW — [@sm6srw](https://github.com/sm6srw) (coautor)
 
 ---
 
@@ -350,6 +351,7 @@ To point to a PstRotator on another machine, pass the parameter in the device st
 
 MIT — see [LICENSE](LICENSE)
 
-## Author
+## Authors
 
-EA5WA — [@ea5wa](https://github.com/ea5wa)
+- EA5WA — [@ea5wa](https://github.com/ea5wa)
+- NU1T / SM6SRW — [@sm6srw](https://github.com/sm6srw) (co-author)
