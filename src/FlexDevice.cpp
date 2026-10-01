@@ -432,6 +432,12 @@ int FlexDevice::activateStream(SoapySDR::Stream* stream,
                 dbg(std::string("rigctld TX set_ptt: ") + (ptt ? "ON" : "OFF"));
                 if (smartsdr_->isConnected())
                     smartsdr_->setPtt(ptt);
+            },
+            [this](double toneHz, bool enabled) {
+                dbg("rigctld TX ctcss: " + std::to_string(toneHz) + " Hz " +
+                    (enabled ? "ON" : "OFF"));
+                if (smartsdr_->isConnected())
+                    smartsdr_->setTxCtcss(toneHz, enabled);
             });
 
         // Arrancar receptor UDP primero

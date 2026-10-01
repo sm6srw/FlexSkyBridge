@@ -219,6 +219,30 @@ std::string SmartSDRClient::getTxMode() const {
     return currentTxMode_;
 }
 
+// CTCSS TX: "slice set <idx> fm_tone_mode=CTCSS_TX fm_tone_value=<Hz>" o
+// fm_tone_mode=OFF. Solo tiene efecto con el slice TX en modo FM/NFM/DFM.
+void SmartSDRClient::setTxCtcss(double toneHz, bool enabled) {
+    int idx = txSliceIdx_.load();
+    if (idx < 0) {
+        dbgSdr("WARN: setTxCtcss sin slice TX detectado, descartado");
+        return;
+    }
+
+    std::ostringstream cmd;
+    cmd << "slice set " << idx;
+    if (enabled && toneHz > 0.0)
+        cmd << " fm_tone_mode=CTCSS_TX fm_tone_value="
+            << std::fixed << std::setprecision(1) << toneHz;
+    else
+        cmd << " fm_tone_mode=OFF";
+
+    if (cmd.str() == lastCtcssCmd_) return;
+    lastCtcssCmd_ = cmd.str();
+
+    dbgSdr("CTCSS TX: " + cmd.str());
+    sendCommand(cmd.str());
+}
+
 // -----------------------------------------------------------------------------
 // Control de PTT - "xmit <0|1>" activa/desactiva la transmision en el radio.
 // El comando xmit es global (no por slice); el radio transmite en el slice

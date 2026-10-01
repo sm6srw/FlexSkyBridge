@@ -16,12 +16,13 @@ public:
     using FreqCallback = std::function<void(double freqHz)>;
     using ModeCallback = std::function<void(const std::string& mode, int passband)>;
     using PttCallback  = std::function<void(bool ptt)>;
+    using CtcssCallback = std::function<void(double toneHz, bool enabled)>;
 
     RigCtldServer() = default;
     ~RigCtldServer() { stop(); }
 
     void start(uint16_t port, FreqCallback onSetFreq, ModeCallback onSetMode = nullptr,
-               PttCallback onSetPtt = nullptr);
+               PttCallback onSetPtt = nullptr, CtcssCallback onSetCtcss = nullptr);
     void stop();
     void setCurrentFreq(double freqHz) { currentFreq_ = freqHz; }
     void setCurrentMode(const std::string& mode, int passband = 0);
@@ -38,6 +39,9 @@ private:
     FreqCallback        onSetFreq_;
     ModeCallback        onSetMode_;
     PttCallback         onSetPtt_;
+    CtcssCallback       onSetCtcss_;
+    std::atomic<int>    ctcssTenthsHz_{ 0 };
+    std::atomic<bool>   ctcssEnabled_{ false };
     std::atomic<double> currentFreq_{ 145e6 };
     std::atomic<bool>   splitEnabled_{ false };
     std::atomic<bool>   currentPtt_{ false };

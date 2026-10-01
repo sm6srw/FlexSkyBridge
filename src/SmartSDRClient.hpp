@@ -53,6 +53,9 @@ public:
     // en la radio, por lo que se refleja vía onPttChanged() al recibir el
     // status "transmit ... transmit=<0|1>" del radio.
     void setPtt(bool ptt);
+
+    // CTCSS en TX: fija fm_tone_mode/fm_tone_value en el slice TX.
+    void setTxCtcss(double toneHz, bool enabled);
     bool getPtt() const { return pttActive_.load(); }
 
     void onFrequencyChanged(FreqCallback cb)   { freqCallback_ = std::move(cb); }
@@ -114,6 +117,7 @@ private:
 
     // ?? Estado de PTT ????????????????????????????????????????????????
     std::atomic<bool>     pttActive_{ false };
+    std::string           lastCtcssCmd_;
     PttCallback           pttCallback_;
 
     std::string           radioIP_;

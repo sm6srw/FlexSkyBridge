@@ -15,13 +15,14 @@ static void dbgRig(const std::string& msg) {
 }
 
 void RigCtldServer::start(uint16_t port, FreqCallback onSetFreq, ModeCallback onSetMode,
-                          PttCallback onSetPtt) {
+                          PttCallback onSetPtt, CtcssCallback onSetCtcss) {
     if (running_.load()) return;
 
     port_        = port;
     onSetFreq_   = std::move(onSetFreq);
     onSetMode_   = std::move(onSetMode);
     onSetPtt_    = std::move(onSetPtt);
+    onSetCtcss_  = std::move(onSetCtcss);
     running_     = true;
 
     listenThread_ = std::thread(&RigCtldServer::listenLoop, this);
@@ -259,7 +260,32 @@ void RigCtldServer::handleClient(uintptr_t clientSock) {
                 dbgRig(std::string("set_ptt: ") + (ptt ? "ON" : "OFF"));
                 response = "RPRT 0\n";
             }
-            // ── Comando "a" de SkyRoof: detecta si somos SkyCAT ────────────────
+            // ── CTCSS TX: "C 670" (decimas de Hz) y "U TONE 1|0" ───────────────
+            else if ((line.size() > 2 && line[0] == 'C' && line[1] == ' ') ||
+                     line.rfind("\\set_ctcss_tone ", 0) == 0)
+            {
+                auto sp = line.find(' ');
+                try { ctcssTenthsHz_ = std::stoi(line.substr(sp + 1)); } catch (...) {}
+                dbgRig("set_ctcss_tone: " + std::to_string(ctcssTenthsHz_.load()));
+                if (onSetCtcss_) onSetCtcss_(ctcssTenthsHz_.load() / 10.0, ctcssEnabled_.load());
+                response = "RPRT 0\n";
+            }
+            else if (line.rfind("U TONE", 0) == 0 || line.rfind("\\set_func TONE", 0) == 0) {
+                auto sp = line.rfind(' ');
+                bool on = false;
+                try { on = (std::stoi(line.substr(sp + 1)) != 0); } catch (...) {}
+                ctcssEnabled_ = on;
+                dbgRig(std::string("set_func TONE: ") + (on ? "ON" : "OFF"));
+                if (onSetCtcss_) onSetCtcss_(ctcssTenthsHz_.load() / 10.0, on);
+                response = "RPRT 0\n";
+            }
+            else if (line == "c" || line == "\\get_ctcss_tone") {
+                response = std::to_string(ctcssTenthsHz_.load()) + "\n";
+            }
+            else if (line.rfind("u TONE", 0) == 0 || line.rfind("\\get_func TONE", 0) == 0) {
+                response = std::string(ctcssEnabled_.load() ? "1" : "0") + "\n";
+            }
+            // ── Comando "a" de SkyRoof: detecta si somos SkyCAT
             // Responder RPRT -18 indica "no soy SkyCAT, usa rigctld estándar"
             // Esto hace que SkyRoof use F <freq> para enviar la frecuencia Doppler
             else if (line == "a") {
