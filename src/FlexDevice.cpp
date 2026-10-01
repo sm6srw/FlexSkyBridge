@@ -19,10 +19,15 @@ static void dbg(const std::string& msg) {
     log.close();
 }
 
-// ── Persistencia simple de settings (antenas por banda V/U) ─────────────────
+// Persistencia simple de settings (antenas por banda V/U)
 // Se guarda en un archivo INI muy sencillo junto al log de debug, así el
 // valor elegido en la UI de settings de SoapySDR (SoapySDRUtil / apps que
 // llaman a writeSetting) sobrevive a reinicios del proceso.
+//
+// Simple settings persistence (per-band V/U antennas).
+// Saved to a very simple INI file next to the debug log, so the value chosen
+// in the SoapySDR settings UI (SoapySDRUtil / apps that call writeSetting)
+// survives process restarts.
 static const char* kSettingsFile = "C:\\RADIO\\FlexSkyBridge_settings.ini";
 
 static std::map<std::string, std::string> loadSettingsFile() {
@@ -61,6 +66,8 @@ FlexDevice::FlexDevice(const SoapySDR::Kwargs& args) {
 
     // Cargar antenas V/U persistidas, si existen; los args del constructor
     // (si se pasan) tienen prioridad sobre el valor guardado.
+    // Load persisted V/U antennas, if any; constructor args (if given) take
+    // priority over the saved value.
     auto savedSettings = loadSettingsFile();
     if (savedSettings.count("v_antenna")) vBandAntenna_ = savedSettings.at("v_antenna");
     if (savedSettings.count("u_antenna")) uBandAntenna_ = savedSettings.at("u_antenna");
@@ -99,6 +106,9 @@ FlexDevice::FlexDevice(const SoapySDR::Kwargs& args) {
         // SkyRoof abre dos conexiones rigctld (RX 4532 y TX 4534) y puede
         // consultar get_ptt en cualquiera de las dos, asi que ambas deben
         // reflejar el mismo estado real de PTT del radio.
+        // SkyRoof opens two rigctld connections (RX 4532 and TX 4534) and may
+        // poll get_ptt on either one, so both must reflect the same real PTT
+        // state of the radio.
         rigctld_->setCurrentPtt(ptt);
         rigctldTx_->setCurrentPtt(ptt);
     });
@@ -140,6 +150,14 @@ std::vector<std::string> FlexDevice::listAntennas(const int dir,
 // disponible (antena de RX) para editar la antena de la banda a la que esté
 // sintonizado el RX en cada momento — V (2m) o U (70cm) — en vez de partir
 // el ajuste en dos canales que SkyRoof no expone.
+//
+// SkyRoof only queries/sets the RX channel antenna (confirmed in the debug
+// log: a setAntenna(SOAPY_SDR_TX, ...) never arrives). The TX channel has no
+// real SoapySDR stream (setupStream rejects TX), so that UI selector is never
+// triggered for TX. We therefore use the only available field (RX antenna)
+// to edit the antenna of the band the RX is currently tuned to — V (2m) or
+// U (70cm) — instead of splitting the setting across two channels that
+// SkyRoof does not expose.
 void FlexDevice::setAntenna(const int dir, const size_t ch, const std::string& name) {
     double freqMHz = currentFreqHz_ / 1e6;
     bool isVBand = (freqMHz >= 144.0 && freqMHz < 148.0);
@@ -162,7 +180,7 @@ std::string FlexDevice::getAntenna(const int dir, const size_t ch) const {
     return isVBand ? vBandAntenna_ : uBandAntenna_;
 }
 
-// ── Settings — antenas por banda (V/U) ───────────────────────────────────────
+// Settings — antenas por banda (V/U) / per-band antennas (V/U)
 SoapySDR::ArgInfoList FlexDevice::getSettingInfo(void) const {
     SoapySDR::ArgInfoList infos;
 
@@ -209,7 +227,7 @@ std::string FlexDevice::readSetting(const std::string& key) const {
     return "";
 }
 
-// ── Sample rates — soportamos los rates que ofrece el DAX IQ de FlexRadio ────
+// Sample rates — soportamos los rates que ofrece el DAX IQ de FlexRadio / we support the rates offered by FlexRadio DAX IQ
 std::vector<double> FlexDevice::listSampleRates(const int dir,
                                                  const size_t ch) const {
     return { 48000.0, 96000.0, 192000.0 };
@@ -224,18 +242,20 @@ void FlexDevice::setSampleRate(const int dir, const size_t ch,
                                 const double rate) {
     // Aceptar el rate que pide SkyRoof (48000, 96000 o 192000 Hz)
     // El radio y el dispositivo WASAPI se configuran en startDaxIQStream
+    // Accept the rate SkyRoof asks for (48000, 96000 or 192000 Hz)
+    // The radio and the WASAPI device are configured in startDaxIQStream
     if (rate == 48000.0 || rate == 96000.0 || rate == 192000.0)
         currentSampleRate_ = rate;
     else
-        currentSampleRate_ = 192000.0;  // default si pide algo fuera de rango
+        currentSampleRate_ = 192000.0;  // default si pide algo fuera de rango / default if it asks for something out of range
     dbg("setSampleRate=" + std::to_string(currentSampleRate_));
 }
 
 double FlexDevice::getSampleRate(const int dir, const size_t ch) const {
-    return currentSampleRate_;  // siempre 48000
+    return currentSampleRate_;  // siempre 48000 / always 48000
 }
 
-// ── Frecuencia ────────────────────────────────────────────────────────────────
+// Frecuencia / Frequency
 void FlexDevice::setFrequency(const int dir, const size_t ch,
                                const std::string& name, const double freq,
                                const SoapySDR::Kwargs& args) {
@@ -284,7 +304,7 @@ SoapySDR::RangeList FlexDevice::getFrequencyRange(const int dir,
     return { SoapySDR::Range(10000.0, 6000000000.0) };
 }
 
-// ── Ganancia ──────────────────────────────────────────────────────────────────
+// Ganancia / Gain
 std::vector<std::string> FlexDevice::listGains(const int dir,
                                                 const size_t ch) const {
     return { "RF" };
@@ -296,7 +316,7 @@ SoapySDR::Range FlexDevice::getGainRange(const int dir,
     return SoapySDR::Range(0.0, 100.0, 1.0);
 }
 
-// ── Ancho de banda ────────────────────────────────────────────────────────────
+// Ancho de banda / Bandwidth
 double FlexDevice::getBandwidth(const int dir, const size_t ch) const {
     return getSampleRate(dir, ch);
 }
@@ -311,11 +331,11 @@ SoapySDR::RangeList FlexDevice::getBandwidthRange(const int dir,
     return { SoapySDR::Range(48000.0, 192000.0) };
 }
 
-// ── rotctld (proceso externo hamlib) ─────────────────────────────────────────
+// rotctld (proceso externo hamlib / external hamlib process)
 void FlexDevice::startRotctld() {
     if (rotctldExe_.empty()) return;
 
-    // Matar instancia previa si quedara huérfana
+    // Matar instancia previa si quedara huérfana / Kill previous instance if left orphaned
     stopRotctld();
 
     std::string cmdLine = "\"" + rotctldExe_ + "\" " + rotctldArgs_;
@@ -324,7 +344,7 @@ void FlexDevice::startRotctld() {
     STARTUPINFOA si{};
     si.cb = sizeof(si);
     si.dwFlags = STARTF_USESHOWWINDOW;
-    si.wShowWindow = SW_HIDE;   // sin ventana visible
+    si.wShowWindow = SW_HIDE;   // sin ventana visible / no visible window
 
     if (!CreateProcessA(nullptr,
                         const_cast<char*>(cmdLine.c_str()),
@@ -351,7 +371,7 @@ void FlexDevice::stopRotctld() {
     dbg("rotctld detenido");
 }
 
-// ── Streaming ─────────────────────────────────────────────────────────────────
+// Streaming IQ / IQ streaming
 SoapySDR::Stream* FlexDevice::setupStream(const int dir,
                                            const std::string& format,
                                            const std::vector<size_t>& channels,
@@ -389,10 +409,11 @@ int FlexDevice::activateStream(SoapySDR::Stream* stream,
             dbg("Conectado OK. Handle=0x" + hs.str());
         }
 
-        // Arrancar rotctld (hamlib) para control de rotor
+        // Arrancar rotctld (hamlib) para control de rotor / Start rotctld (hamlib) for rotator control
         startRotctld();
 
         // Arrancar servidor rigctld para recibir frecuencias Doppler de SkyRoof
+        // Start rigctld server to receive Doppler frequencies from SkyRoof
         dbg("Arrancando rigctld en puerto " + std::to_string(rigctldPort_));
         rigctld_->start(rigctldPort_,
             [this](double freqHz) {
@@ -413,6 +434,9 @@ int FlexDevice::activateStream(SoapySDR::Stream* stream,
         // uplink (TX). SkyRoof (y la mayoría de trackers satelitales) esperan
         // una segunda conexión CAT "normal" (F/f) para el TX, no split-VFO
         // sobre la misma conexión de RX.
+        // Start a second, INDEPENDENT rigctld server dedicated to the uplink
+        // (TX). SkyRoof (and most satellite trackers) expect a second "normal"
+        // CAT connection (F/f) for TX, not split-VFO over the same RX connection.
         dbg("Arrancando rigctld TX en puerto " + std::to_string(rigctldTxPort_));
         rigctldTx_->start(rigctldTxPort_,
             [this](double freqHz) {
@@ -440,17 +464,18 @@ int FlexDevice::activateStream(SoapySDR::Stream* stream,
                     smartsdr_->setTxCtcss(toneHz, enabled);
             });
 
-        // Arrancar receptor UDP primero
+        // Arrancar receptor UDP primero / Start the UDP receiver first
         dbg("Arrancando DAX receiver en puerto " + std::to_string(udpPort_));
         daxReceiver_->start(udpPort_, "DAX IQ RX 1");
         dbg("DAX receiver OK en puerto " + std::to_string(udpPort_));
 
         // Secuencia completa de flexlib-go con rate correcto
+        // Full flexlib-go sequence with the correct rate
         smartsdr_->startDaxIQStream(daxChannel_, udpPort_,
                                      static_cast<int>(currentSampleRate_));
         dbg("startDaxIQStream completado");
 
-        // Aplicar modo actual al radio una vez conectado
+        // Aplicar modo actual al radio una vez conectado / Apply current mode to the radio once connected
         if (smartsdr_->isConnected()) {
             smartsdr_->setSliceMode(0, currentMode_);
             smartsdr_->setTxMode(currentTxMode_);

@@ -11,6 +11,11 @@
 // SkyRoof (and any Hamlib client) connects here and sends frequency updates
 // every ~250ms via the CAT Rx interface. We forward each F command directly
 // to the Flex slice via the provided callback.
+//
+// Servidor TCP m�nimo compatible con rigctld de Hamlib.
+// SkyRoof (y cualquier cliente Hamlib) se conecta aqu� y env�a actualizaciones
+// de frecuencia cada ~250 ms por la interfaz CAT Rx. Cada comando F se reenv�a
+// directamente al slice del Flex mediante el callback proporcionado.
 class RigCtldServer {
 public:
     using FreqCallback = std::function<void(double freqHz)>;

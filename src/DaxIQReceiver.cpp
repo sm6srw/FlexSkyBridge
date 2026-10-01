@@ -20,7 +20,6 @@ static void dbgDax(const std::string& msg) {
     log.close();
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 DaxIQReceiver::DaxIQReceiver()
     : ring_(RING_CAPACITY * 2, 0.0f)
 {}
@@ -29,7 +28,6 @@ DaxIQReceiver::~DaxIQReceiver() {
     stop();
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 void DaxIQReceiver::start(uint16_t udpPort, const std::string&) {
     if (running_.load()) return;
     udpPort_       = udpPort;
@@ -45,7 +43,6 @@ void DaxIQReceiver::stop() {
     dbgDax("DaxIQReceiver UDP: detenido");
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 // VITA-49 header para FlexRadio DAX IQ: siempre 7 palabras (28 bytes)
 //   Word 0: VRT header (big-endian)
 //   Word 1: Stream ID
@@ -53,7 +50,14 @@ void DaxIQReceiver::stop() {
 //   Word 4: Integer timestamp
 //   Word 5-6: Fractional timestamp
 // Payload: float32 little-endian interleaved I,Q (Windows ya es LE, sin swap)
-// ─────────────────────────────────────────────────────────────────────────────
+//
+// VITA-49 header for FlexRadio DAX IQ: always 7 words (28 bytes)
+//   Word 0: VRT header (big-endian)
+//   Word 1: Stream ID
+//   Word 2-3: Class ID
+//   Word 4: Integer timestamp
+//   Word 5-6: Fractional timestamp
+// Payload: float32 little-endian interleaved I,Q (Windows is already LE, no swap)
 static constexpr int VITA49_HEADER_BYTES = 28;
 static constexpr int MAX_UDP_PACKET      = 9000;
 
@@ -67,15 +71,17 @@ void DaxIQReceiver::captureLoop() {
         return;
     }
 
-    // Reusar dirección
+    // Reusar dirección / Reuse address
     int reuse = 1;
     setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (char*)&reuse, sizeof(reuse));
 
     // Buffer de recepción 8 MB — evita descartes bajo carga
+    // 8 MB receive buffer — avoids drops under load
     int rcvbuf = 8 * 1024 * 1024;
     setsockopt(sock, SOL_SOCKET, SO_RCVBUF, (char*)&rcvbuf, sizeof(rcvbuf));
 
     // Timeout para que el bucle pueda comprobar running_
+    // Timeout so the loop can check running_
     DWORD tv = 200;
     setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (char*)&tv, sizeof(tv));
 
@@ -100,9 +106,10 @@ void DaxIQReceiver::captureLoop() {
         int n = recv(sock, (char*)pkt.data(), (int)pkt.size(), 0);
         if (n <= 0) continue;
 
-        if (n < VITA49_HEADER_BYTES + 8) continue;  // mínimo 1 par IQ
+        if (n < VITA49_HEADER_BYTES + 8) continue;  // mínimo 1 par IQ / minimum 1 IQ pair
 
         // Extraer tamaño total del paquete del header VITA-49 (big-endian)
+        // Extract total packet size from the VITA-49 header (big-endian)
         uint32_t hdrWord0 = ntohl(*(uint32_t*)pkt.data());
         int packetSizeWords = (int)(hdrWord0 & 0xFFFF);
         int hasTrailer      = (int)((hdrWord0 >> 26) & 1);
@@ -131,6 +138,7 @@ void DaxIQReceiver::captureLoop() {
 
             for (int i = 0; i < nPairs; ++i) {
                 // Descartar muestras más antiguas si el buffer está lleno
+                // Drop oldest samples if the buffer is full
                 if (count_.load() >= RING_CAPACITY) {
                     readPos_ = (readPos_ + 2) % bufSize;
                     count_.fetch_sub(1);
@@ -149,9 +157,8 @@ void DaxIQReceiver::captureLoop() {
     dbgDax("UDP: captureLoop terminado");
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 // Espera hasta tener exactamente maxSamples (como SoapyFlexRadio original)
-// ─────────────────────────────────────────────────────────────────────────────
+// Waits until exactly maxSamples are available (like the original SoapyFlexRadio)
 int DaxIQReceiver::read(float* dest, int maxSamples, int timeoutMs) {
     std::unique_lock<std::mutex> lock(ringMutex_);
 

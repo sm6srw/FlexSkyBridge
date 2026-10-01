@@ -17,28 +17,35 @@ public:
     explicit FlexDevice(const SoapySDR::Kwargs& args);
     ~FlexDevice() override;
 
-    // ── Identificación ────────────────────────────────────────────────────────
+    // Identificación / Identification
     std::string getDriverKey()   const override { return "FlexSkyBridge"; }
     std::string getHardwareKey() const override { return "FLEX-6600";     }
     SoapySDR::Kwargs getHardwareInfo() const override;
 
-    // ── Canales ───────────────────────────────────────────────────────────────
+    // Canales / Channels
     size_t getNumChannels(const int dir) const override;
 
-    // ── Antenas ───────────────────────────────────────────────────────────────
+    // Antenas / Antennas
     // Panadapter 1 (RX) arranca en modo V/U como RX en 70cm/UHF, así que su
     // selector de antena controla qué transverter se usa para la banda U.
     // Panadapter 2 (TX) arranca como TX en 2m/VHF, así que su selector
     // controla la banda V. Estos mismos valores son los que
     // SmartSDRClient::applyAntennaForBand usa automáticamente al detectar la
     // banda de la frecuencia sintonizada en cada slice.
+    //
+    // Panadapter 1 (RX) starts in V/U mode as RX on 70cm/UHF, so its antenna
+    // selector controls which transverter is used for the U band.
+    // Panadapter 2 (TX) starts as TX on 2m/VHF, so its selector controls the
+    // V band. These same values are what SmartSDRClient::applyAntennaForBand
+    // uses automatically when it detects the band of the frequency tuned on
+    // each slice.
     std::vector<std::string> listAntennas(const int dir,
                                           const size_t ch) const override;
     void        setAntenna(const int dir, const size_t ch,
                            const std::string& name) override;
     std::string getAntenna(const int dir, const size_t ch) const override;
 
-    // ── Sample rate ───────────────────────────────────────────────────────────
+    // Sample rate
     void   setSampleRate(const int dir, const size_t ch,
                          const double rate) override;
     double getSampleRate(const int dir, const size_t ch) const override;
@@ -47,7 +54,7 @@ public:
     SoapySDR::RangeList getSampleRateRange(const int dir,
                                            const size_t ch) const override;
 
-    // ── Frecuencia ────────────────────────────────────────────────────────────
+    // Frecuencia / Frequency
     void   setFrequency(const int dir, const size_t ch,
                         const std::string& name, const double freq,
                         const SoapySDR::Kwargs& args) override;
@@ -59,7 +66,7 @@ public:
                                           const size_t ch,
                                           const std::string& name) const override;
 
-    // ── Ganancia ──────────────────────────────────────────────────────────────
+    // Ganancia / Gain
     std::vector<std::string> listGains(const int dir,
                                        const size_t ch) const override;
     bool hasGainMode(const int dir, const size_t ch) const override { return false; }
@@ -72,7 +79,7 @@ public:
     SoapySDR::Range getGainRange(const int dir,
                                  const size_t ch) const override;
 
-    // ── Ancho de banda ────────────────────────────────────────────────────────
+    // Ancho de banda / Bandwidth
     void   setBandwidth(const int dir, const size_t ch,
                         const double bw) override {}
     double getBandwidth(const int dir, const size_t ch) const override;
@@ -81,7 +88,7 @@ public:
     SoapySDR::RangeList getBandwidthRange(const int dir,
                                           const size_t ch) const override;
 
-    // ── Streaming IQ ──────────────────────────────────────────────────────────
+    // Streaming IQ / IQ streaming
     SoapySDR::Stream* setupStream(const int dir,
                                   const std::string& format,
                                   const std::vector<size_t>& channels,
@@ -106,16 +113,20 @@ public:
                    long long& timeNs,
                    const long timeoutUs) override;
                    
-    // ── DC Offset Mode ──────────────────────────────────────────────────────────
+    // DC Offset Mode
     bool hasDCOffsetMode(const int dir, const size_t ch) const override { return true; }
     void setDCOffsetMode(const int dir, const size_t ch,
                      const bool automatic) override {}
     bool getDCOffsetMode(const int dir, const size_t ch) const override { return true; }
 
-    // ── Settings — antenas por banda (V/U) ───────────────────────────────────────
+    // Settings — antenas por banda (V/U) / per-band antennas (V/U)
     // Permite elegir qué transverter/antena (de listAntennas) usar para el modo
     // V (2m/VHF) y para el modo U (70cm/UHF). Se persiste en el archivo .config
     // que SoapySDR guarda por dispositivo (device settings cache).
+    //
+    // Lets you choose which transverter/antenna (from listAntennas) to use for
+    // V mode (2m/VHF) and U mode (70cm/UHF). Persisted in the .config file
+    // that SoapySDR stores per device (device settings cache).
     SoapySDR::ArgInfoList getSettingInfo(void) const override;
     void        writeSetting(const std::string& key, const std::string& value) override;
     std::string readSetting(const std::string& key) const override;
@@ -136,9 +147,11 @@ private:
     double      currentTxFreqHz_  { 145e6 };
     std::string currentTxMode_    { "USB" };
 
-    // ── Antenas por banda (V/U) ─────────────────────────────────────────────────
+    // Antenas por banda (V/U) / Per-band antennas (V/U)
     // Punto de partida hardcoded para un transpondedor V/U: panadapter 1 (RX)
     // recibe en 70cm/UHF, panadapter 2 (TX) transmite en 2m/VHF.
+    // Hardcoded starting point for a V/U transponder: panadapter 1 (RX)
+    // receives on 70cm/UHF, panadapter 2 (TX) transmits on 2m/VHF.
     std::string vBandAntenna_{ "XVTA" };
     std::string uBandAntenna_{ "XVTB" };
 
@@ -148,13 +161,16 @@ private:
     // Servidor rigctld independiente para TX — SkyRoof (y la mayoría de
     // trackers satelitales) esperan una segunda conexión CAT simple para el
     // uplink en vez de split-VFO sobre la misma conexión.
+    // Independent rigctld server for TX — SkyRoof (and most satellite
+    // trackers) expect a second plain CAT connection for the uplink instead of
+    // split-VFO over the same connection.
     std::unique_ptr<RigCtldServer>  rigctldTx_;
 
     uint16_t          rigctldPort_{ 4532 };
     uint16_t          rigctldTxPort_{ 4534 };
     std::atomic<bool> streaming_{ false };
 
-    // ── rotctld (control de rotor via hamlib) ─────────────────────────────────
+    // rotctld (control de rotor via hamlib / rotator control via hamlib)
     std::string        rotctldExe_ { "C:\\hamlib\\bin\\rotctld.exe" };
     std::string        rotctldArgs_{ "-m 3 -r 127.0.0.1:4533" };
     PROCESS_INFORMATION rotctldProc_{ nullptr, nullptr, 0, 0 };
