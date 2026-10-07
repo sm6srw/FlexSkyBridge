@@ -119,11 +119,13 @@ En SkyRoof, selecciona como SDR device:
 | `vantenna` | Antena/transverter para banda V (2m/VHF) | `XVTA` |
 | `uantenna` | Antena/transverter para banda U (70cm/UHF) | `XVTB` |
 
-`vantenna`/`uantenna` también pueden cambiarse en caliente desde el panel de
-**Settings** de SoapySDR (SkyRoof lo expone en la configuración del dispositivo),
-con las opciones disponibles en la lista de antenas del dispositivo. El valor
-elegido se persiste en `C:\RADIO\FlexSkyBridge_settings.ini` y sobrevive a
-reinicios. Al conmutar entre un transpondedor V/U y uno U/V, el driver detecta
+Todos estos parámetros se persisten en
+`%APPDATA%\Afreet\Products\SkyRoof\FlexSkyBridge_settings.ini`.
+Los argumentos que pasa SkyRoof/SoapySDR tienen prioridad sobre el INI.
+También se pueden editar desde el panel **Settings** de SoapySDR (SkyRoof lo
+expone en la configuración del dispositivo). `vantenna`/`uantenna` se aplican
+en caliente; el resto (IP, puertos, rotctld) se aplica al siguiente arranque
+del stream. Al conmutar entre un transpondedor V/U y uno U/V, el driver detecta
 automáticamente la banda de la frecuencia sintonizada en cada slice (RX/TX) y
 asigna la antena configurada para esa banda.
 
@@ -160,7 +162,7 @@ Si necesitas apuntar a un PstRotator en otra máquina, pasa el parámetro en el 
 
 - No es necesario activar el DAX IQ 1 en SmartSDR DAX — el plugin crea su propio stream independiente
 - El plugin convive con AetherSDR / SmartSDR-Win abierto simultáneamente
-- El log de depuración se escribe en `C:\RADIO\FlexSkyBridge_debug.log`
+- El log de depuración se escribe en `%APPDATA%\Afreet\Products\SkyRoof\FlexSkyBridge_debug.log`
 
 
 ## Arquitectura interna
@@ -295,12 +297,14 @@ In SkyRoof, select the SDR device and set these parameters:
 | `vantenna` | Antenna/transverter for V band (2m/VHF) | `XVTA` |
 | `uantenna` | Antenna/transverter for U band (70cm/UHF) | `XVTB` |
 
-`vantenna`/`uantenna` can also be changed on the fly from the SoapySDR **Settings** panel
-(SkyRoof exposes it in the device configuration), using the options from the device's
-antenna list. The chosen value is persisted in `C:\RADIO\FlexSkyBridge_settings.ini` and
-survives restarts. When switching between a V/U and a U/V transponder, the driver detects
-the band of the tuned frequency on each slice (RX/TX) and assigns the antenna configured
-for that band.
+All of these parameters are persisted in
+`%APPDATA%\Afreet\Products\SkyRoof\FlexSkyBridge_settings.ini`.
+Arguments passed by SkyRoof/SoapySDR take priority over the INI.
+They can also be edited from the SoapySDR **Settings** panel (SkyRoof exposes it
+in the device configuration). `vantenna`/`uantenna` apply immediately; the rest
+(IP, ports, rotctld) apply on the next stream start. When switching between a
+V/U and a U/V transponder, the driver detects the band of the tuned frequency
+on each slice (RX/TX) and assigns the antenna configured for that band.
 
 Also configure in SkyRoof:
 - **CAT / Rig control (RX)** → rigctld at `127.0.0.1:4532`
@@ -335,7 +339,7 @@ To point to a PstRotator on another machine, pass the parameter in the device st
 
 - You don't need to enable DAX IQ 1 in SmartSDR DAX — the plugin creates its own independent stream
 - The plugin coexists with AetherSDR / SmartSDR-Win open at the same time
-- The debug log is written to `C:\RADIO\FlexSkyBridge_debug.log`
+- The debug log is written to `%APPDATA%\Afreet\Products\SkyRoof\FlexSkyBridge_debug.log`
 
 ## Internal architecture
 

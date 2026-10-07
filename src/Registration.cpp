@@ -1,12 +1,11 @@
 #include <SoapySDR/Registry.hpp>
 #include <SoapySDR/Device.hpp>
-#include <fstream>
 #include "FlexDevice.hpp"
+#include "SkyRoofPaths.hpp"
+#include "SettingsIni.hpp"
 
 static void dbgReg(const std::string& msg) {
-    std::ofstream log("C:\\RADIO\\FlexSkyBridge_debug.log", std::ios::app);
-    log << msg << "\n";
-    log.close();
+    fsb::debugLog(msg);
 }
 
 static std::vector<SoapySDR::Kwargs> findFlex(const SoapySDR::Kwargs& args) {
@@ -14,23 +13,28 @@ static std::vector<SoapySDR::Kwargs> findFlex(const SoapySDR::Kwargs& args) {
 
     std::vector<SoapySDR::Kwargs> results;
 
+    auto ini = fsb::loadSettingsFile();
+    auto radio   = fsb::settingFromMap(ini, {"radio"}, "192.168.0.208");
+    auto channel = fsb::settingFromMap(ini, {"channel"}, "1");
+    auto udpport = fsb::settingFromMap(ini, {"udpport"}, "7891");
+
     if (args.count("radio")) {
         SoapySDR::Kwargs dev;
         dev["driver"]  = "FlexSkyBridge";
         dev["label"]   = "Flex 6600 via FlexSkyBridge (" + args.at("radio") + ")";
         dev["radio"]   = args.at("radio");
-        dev["channel"] = args.count("channel") ? args.at("channel") : "1";
-        dev["udpport"] = args.count("udpport") ? args.at("udpport") : "7891";
+        dev["channel"] = args.count("channel") ? args.at("channel") : channel;
+        dev["udpport"] = args.count("udpport") ? args.at("udpport") : udpport;
         results.push_back(dev);
         return results;
     }
 
     SoapySDR::Kwargs dev;
     dev["driver"]  = "FlexSkyBridge";
-    dev["label"]   = "Flex 6600 via FlexSkyBridge";
-    dev["radio"]   = "192.168.194.94";
-    dev["channel"] = "1";
-    dev["udpport"] = "7891";
+    dev["label"]   = "Flex 6600 via FlexSkyBridge (" + radio + ")";
+    dev["radio"]   = radio;
+    dev["channel"] = channel;
+    dev["udpport"] = udpport;
     results.push_back(dev);
 
     return results;

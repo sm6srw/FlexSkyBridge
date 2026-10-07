@@ -1,8 +1,8 @@
 #include "DaxIQReceiver.hpp"
+#include "SkyRoofPaths.hpp"
 
 #include <stdexcept>
 #include <string>
-#include <fstream>
 #include <chrono>
 #include <algorithm>
 #include <cstring>
@@ -15,9 +15,7 @@
 #pragma comment(lib, "ws2_32.lib")
 
 static void dbgDax(const std::string& msg) {
-    std::ofstream log("C:\\RADIO\\FlexSkyBridge_debug.log", std::ios::app);
-    log << msg << "\n";
-    log.close();
+    fsb::debugLog(msg);
 }
 
 DaxIQReceiver::DaxIQReceiver()
