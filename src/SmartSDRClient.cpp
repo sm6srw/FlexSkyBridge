@@ -1,11 +1,11 @@
 #include "SmartSDRClient.hpp"
+#include "SkyRoofPaths.hpp"
 
 #include <stdexcept>
 #include <sstream>
 #include <iostream>
 #include <iomanip>
 #include <string>
-#include <fstream>
 #include <cstring>
 #include <thread>
 #include <chrono>
@@ -55,9 +55,7 @@ namespace {
 }
 
 static void dbgSdr(const std::string& msg) {
-    std::ofstream log("C:\\RADIO\\FlexSkyBridge_debug.log", std::ios::app);
-    log << msg << "\n";
-    log.close();
+    fsb::debugLog(msg);
 }
 
 SmartSDRClient::SmartSDRClient() {

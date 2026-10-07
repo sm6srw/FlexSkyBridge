@@ -1,7 +1,7 @@
 #include "RigCtldServer.hpp"
+#include "SkyRoofPaths.hpp"
 
 #include <sstream>
-#include <fstream>
 #include <cstring>
 #include <chrono>
 
@@ -10,8 +10,7 @@
 #include <ws2tcpip.h>
 
 static void dbgRig(const std::string& msg) {
-    std::ofstream log("C:\\RADIO\\FlexSkyBridge_debug.log", std::ios::app);
-    log << "[rigctld] " << msg << "\n";
+    fsb::debugLog("[rigctld] " + msg);
 }
 
 void RigCtldServer::start(uint16_t port, FreqCallback onSetFreq, ModeCallback onSetMode,

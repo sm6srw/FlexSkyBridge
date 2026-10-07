@@ -1,11 +1,12 @@
 #include "FlexDevice.hpp"
+#include "SkyRoofPaths.hpp"
+#include "SettingsIni.hpp"
 #include <SoapySDR/Logger.hpp>
 #include <SoapySDR/Formats.hpp>
 #include <SoapySDR/Types.hpp>
 #include <stdexcept>
 #include <string>
 #include <iostream>
-#include <fstream>
 #include <sstream>
 #include <map>
 
@@ -14,65 +15,76 @@
 #include <ws2tcpip.h>
 
 static void dbg(const std::string& msg) {
-    std::ofstream log("C:\\RADIO\\FlexSkyBridge_debug.log", std::ios::app);
-    log << msg << "\n";
-    log.close();
+    fsb::debugLog(msg);
 }
 
-// Persistencia simple de settings (antenas por banda V/U)
-// Se guarda en un archivo INI muy sencillo junto al log de debug, así el
-// valor elegido en la UI de settings de SoapySDR (SoapySDRUtil / apps que
-// llaman a writeSetting) sobrevive a reinicios del proceso.
-//
-// Simple settings persistence (per-band V/U antennas).
-// Saved to a very simple INI file next to the debug log, so the value chosen
-// in the SoapySDR settings UI (SoapySDRUtil / apps that call writeSetting)
-// survives process restarts.
-static const char* kSettingsFile = "C:\\RADIO\\FlexSkyBridge_settings.ini";
-
-static std::map<std::string, std::string> loadSettingsFile() {
-    std::map<std::string, std::string> result;
-    std::ifstream in(kSettingsFile);
-    std::string line;
-    while (std::getline(in, line)) {
-        auto eq = line.find('=');
-        if (eq == std::string::npos) continue;
-        result[line.substr(0, eq)] = line.substr(eq + 1);
+static std::string resolveSetting(
+    const SoapySDR::Kwargs& args,
+    const std::map<std::string, std::string>& ini,
+    std::initializer_list<const char*> keys,
+    const std::string& fallback)
+{
+    for (auto k : keys) {
+        auto it = args.find(k);
+        if (it != args.end() && !it->second.empty())
+            return it->second;
     }
-    return result;
+    return fsb::settingFromMap(ini, keys, fallback);
 }
 
-static void saveSettingsFile(const std::map<std::string, std::string>& settings) {
-    std::ofstream out(kSettingsFile, std::ios::trunc);
-    for (const auto& kv : settings)
-        out << kv.first << "=" << kv.second << "\n";
+static int parseIntSetting(const std::string& value, int fallback) {
+    try {
+        return std::stoi(value);
+    } catch (...) {
+        return fallback;
+    }
 }
 
 static void persistSetting(const std::string& key, const std::string& value) {
-    auto settings = loadSettingsFile();
-    settings[key] = value;
-    saveSettingsFile(settings);
+    fsb::persistSetting(key, value);
+}
+
+static void persistAllSettings(const std::string& radio,
+                               int channel, int udpPort,
+                               int rigctld, int rigctldTx,
+                               const std::string& rotctldExe,
+                               const std::string& rotctldArgs,
+                               const std::string& vAntenna,
+                               const std::string& uAntenna) {
+    auto settings = fsb::loadSettingsFile();
+    settings["radio"]       = radio;
+    settings["channel"]     = std::to_string(channel);
+    settings["udpport"]     = std::to_string(udpPort);
+    settings["rigctld"]     = std::to_string(rigctld);
+    settings["rigctldtx"]   = std::to_string(rigctldTx);
+    settings["rotctldexe"]  = rotctldExe;
+    settings["rotctldargs"] = rotctldArgs;
+    settings["v_antenna"]   = vAntenna;
+    settings["u_antenna"]   = uAntenna;
+    fsb::saveSettingsFile(settings);
 }
 
 FlexDevice::FlexDevice(const SoapySDR::Kwargs& args) {
     dbg("=== Constructor llamado ===");
-    radioIP_       = (args.count("radio")       ? args.at("radio")       : "192.168.0.208");
-    daxChannel_    = (args.count("channel")     ? std::stoi(args.at("channel"))  : 1);
-    udpPort_       = (args.count("udpport")     ? std::stoi(args.at("udpport"))  : 7891);
-    rigctldPort_   = (args.count("rigctld")     ? std::stoi(args.at("rigctld"))  : 4532);
-    rigctldTxPort_ = (args.count("rigctldtx")   ? std::stoi(args.at("rigctldtx")): 4534);
-    if (args.count("rotctldexe"))  rotctldExe_  = args.at("rotctldexe");
-    if (args.count("rotctldargs")) rotctldArgs_ = args.at("rotctldargs");
 
-    // Cargar antenas V/U persistidas, si existen; los args del constructor
-    // (si se pasan) tienen prioridad sobre el valor guardado.
-    // Load persisted V/U antennas, if any; constructor args (if given) take
-    // priority over the saved value.
-    auto savedSettings = loadSettingsFile();
-    if (savedSettings.count("v_antenna")) vBandAntenna_ = savedSettings.at("v_antenna");
-    if (savedSettings.count("u_antenna")) uBandAntenna_ = savedSettings.at("u_antenna");
-    if (args.count("vantenna")) vBandAntenna_ = args.at("vantenna");
-    if (args.count("uantenna")) uBandAntenna_ = args.at("uantenna");
+    // Prioridad: args SoapySDR/SkyRoof > INI > valores por defecto.
+    // Precedence: SoapySDR/SkyRoof args > INI > defaults.
+    auto ini = fsb::loadSettingsFile();
+    radioIP_       = resolveSetting(args, ini, {"radio"}, "192.168.0.208");
+    daxChannel_    = parseIntSetting(resolveSetting(args, ini, {"channel"}, "1"), 1);
+    udpPort_       = static_cast<uint16_t>(parseIntSetting(
+        resolveSetting(args, ini, {"udpport"}, "7891"), 7891));
+    rigctldPort_   = static_cast<uint16_t>(parseIntSetting(
+        resolveSetting(args, ini, {"rigctld"}, "4532"), 4532));
+    rigctldTxPort_ = static_cast<uint16_t>(parseIntSetting(
+        resolveSetting(args, ini, {"rigctldtx"}, "4534"), 4534));
+    rotctldExe_    = resolveSetting(args, ini, {"rotctldexe"}, rotctldExe_);
+    rotctldArgs_   = resolveSetting(args, ini, {"rotctldargs"}, rotctldArgs_);
+    vBandAntenna_  = resolveSetting(args, ini, {"vantenna", "v_antenna"}, vBandAntenna_);
+    uBandAntenna_  = resolveSetting(args, ini, {"uantenna", "u_antenna"}, uBandAntenna_);
+
+    persistAllSettings(radioIP_, daxChannel_, udpPort_, rigctldPort_, rigctldTxPort_,
+                       rotctldExe_, rotctldArgs_, vBandAntenna_, uBandAntenna_);
 
     dbg("radioIP=" + radioIP_ + " canal=" + std::to_string(daxChannel_) +
         " udpPort=" + std::to_string(udpPort_) +
@@ -180,11 +192,47 @@ std::string FlexDevice::getAntenna(const int dir, const size_t ch) const {
     return isVBand ? vBandAntenna_ : uBandAntenna_;
 }
 
-// Settings — antenas por banda (V/U) / per-band antennas (V/U)
+// Settings — todos los parámetros persistidos en el INI /
+// all parameters persisted in the INI
 SoapySDR::ArgInfoList FlexDevice::getSettingInfo(void) const {
     SoapySDR::ArgInfoList infos;
-
     auto antennaOptions = listAntennas(SOAPY_SDR_RX, 0);
+
+    auto addStr = [&](const char* key, const std::string& value,
+                      const char* name, const char* description) {
+        SoapySDR::ArgInfo info;
+        info.key         = key;
+        info.value       = value;
+        info.name        = name;
+        info.description = description;
+        info.type        = SoapySDR::ArgInfo::STRING;
+        infos.push_back(info);
+    };
+    auto addInt = [&](const char* key, int value,
+                      const char* name, const char* description) {
+        SoapySDR::ArgInfo info;
+        info.key         = key;
+        info.value       = std::to_string(value);
+        info.name        = name;
+        info.description = description;
+        info.type        = SoapySDR::ArgInfo::INT;
+        infos.push_back(info);
+    };
+
+    addStr("radio", radioIP_, "Radio IP",
+           "FlexRadio IP address. Applied on the next stream start.");
+    addInt("channel", daxChannel_, "DAX IQ channel",
+           "DAX IQ channel (1-8). Applied on the next stream start.");
+    addInt("udpport", udpPort_, "IQ UDP port",
+           "UDP port for IQ. Applied on the next stream start.");
+    addInt("rigctld", rigctldPort_, "rigctld RX port",
+           "rigctld RX/downlink port. Applied on the next stream start.");
+    addInt("rigctldtx", rigctldTxPort_, "rigctld TX port",
+           "rigctld TX/uplink port. Applied on the next stream start.");
+    addStr("rotctldexe", rotctldExe_, "rotctld executable",
+           "Path to rotctld.exe. Applied on the next stream start.");
+    addStr("rotctldargs", rotctldArgs_, "rotctld arguments",
+           "Arguments passed to rotctld. Applied on the next stream start.");
 
     SoapySDR::ArgInfo vAnt;
     vAnt.key         = "v_antenna";
@@ -208,22 +256,51 @@ SoapySDR::ArgInfoList FlexDevice::getSettingInfo(void) const {
 }
 
 void FlexDevice::writeSetting(const std::string& key, const std::string& value) {
-    if (key == "v_antenna") {
+    if (key == "radio") {
+        radioIP_ = value;
+        persistSetting("radio", value);
+    } else if (key == "channel") {
+        daxChannel_ = parseIntSetting(value, daxChannel_);
+        persistSetting("channel", std::to_string(daxChannel_));
+    } else if (key == "udpport") {
+        udpPort_ = static_cast<uint16_t>(parseIntSetting(value, udpPort_));
+        persistSetting("udpport", std::to_string(udpPort_));
+    } else if (key == "rigctld") {
+        rigctldPort_ = static_cast<uint16_t>(parseIntSetting(value, rigctldPort_));
+        persistSetting("rigctld", std::to_string(rigctldPort_));
+    } else if (key == "rigctldtx") {
+        rigctldTxPort_ = static_cast<uint16_t>(parseIntSetting(value, rigctldTxPort_));
+        persistSetting("rigctldtx", std::to_string(rigctldTxPort_));
+    } else if (key == "rotctldexe") {
+        rotctldExe_ = value;
+        persistSetting("rotctldexe", value);
+    } else if (key == "rotctldargs") {
+        rotctldArgs_ = value;
+        persistSetting("rotctldargs", value);
+    } else if (key == "v_antenna" || key == "vantenna") {
         vBandAntenna_ = value;
         smartsdr_->setBandAntennas(vBandAntenna_, uBandAntenna_);
         persistSetting("v_antenna", value);
-        dbg("writeSetting v_antenna=" + value);
-    } else if (key == "u_antenna") {
+    } else if (key == "u_antenna" || key == "uantenna") {
         uBandAntenna_ = value;
         smartsdr_->setBandAntennas(vBandAntenna_, uBandAntenna_);
         persistSetting("u_antenna", value);
-        dbg("writeSetting u_antenna=" + value);
+    } else {
+        return;
     }
+    dbg("writeSetting " + key + "=" + value);
 }
 
 std::string FlexDevice::readSetting(const std::string& key) const {
-    if (key == "v_antenna") return vBandAntenna_;
-    if (key == "u_antenna") return uBandAntenna_;
+    if (key == "radio") return radioIP_;
+    if (key == "channel") return std::to_string(daxChannel_);
+    if (key == "udpport") return std::to_string(udpPort_);
+    if (key == "rigctld") return std::to_string(rigctldPort_);
+    if (key == "rigctldtx") return std::to_string(rigctldTxPort_);
+    if (key == "rotctldexe") return rotctldExe_;
+    if (key == "rotctldargs") return rotctldArgs_;
+    if (key == "v_antenna" || key == "vantenna") return vBandAntenna_;
+    if (key == "u_antenna" || key == "uantenna") return uBandAntenna_;
     return "";
 }
 

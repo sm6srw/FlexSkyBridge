@@ -119,14 +119,10 @@ public:
                      const bool automatic) override {}
     bool getDCOffsetMode(const int dir, const size_t ch) const override { return true; }
 
-    // Settings — antenas por banda (V/U) / per-band antennas (V/U)
-    // Permite elegir qué transverter/antena (de listAntennas) usar para el modo
-    // V (2m/VHF) y para el modo U (70cm/UHF). Se persiste en el archivo .config
-    // que SoapySDR guarda por dispositivo (device settings cache).
-    //
-    // Lets you choose which transverter/antenna (from listAntennas) to use for
-    // V mode (2m/VHF) and U mode (70cm/UHF). Persisted in the .config file
-    // that SoapySDR stores per device (device settings cache).
+    // Settings persistidos en FlexSkyBridge_settings.ini (carpeta de datos de
+    // SkyRoof). Los args del constructor tienen prioridad sobre el INI.
+    // Settings persisted in FlexSkyBridge_settings.ini (SkyRoof data folder).
+    // Constructor args take priority over the INI.
     SoapySDR::ArgInfoList getSettingInfo(void) const override;
     void        writeSetting(const std::string& key, const std::string& value) override;
     std::string readSetting(const std::string& key) const override;
