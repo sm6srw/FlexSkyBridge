@@ -121,7 +121,7 @@ En SkyRoof, selecciona como SDR device:
 
 Todos estos parámetros se persisten en
 `%APPDATA%\Afreet\Products\SkyRoof\FlexSkyBridge_settings.ini`.
-Los argumentos que pasa SkyRoof/SoapySDR tienen prioridad sobre el INI.
+Si una clave ya está en el INI, ese valor se usa al arrancar. Los argumentos de SkyRoof/SoapySDR solo rellenan claves que faltan.
 También se pueden editar desde el panel **Settings** de SoapySDR (SkyRoof lo
 expone en la configuración del dispositivo). `vantenna`/`uantenna` se aplican
 en caliente; el resto (IP, puertos, rotctld) se aplica al siguiente arranque
@@ -299,7 +299,7 @@ In SkyRoof, select the SDR device and set these parameters:
 
 All of these parameters are persisted in
 `%APPDATA%\Afreet\Products\SkyRoof\FlexSkyBridge_settings.ini`.
-Arguments passed by SkyRoof/SoapySDR take priority over the INI.
+If a key is already in the INI, that value is used at startup. SkyRoof/SoapySDR arguments only fill keys that are missing.
 They can also be edited from the SoapySDR **Settings** panel (SkyRoof exposes it
 in the device configuration). `vantenna`/`uantenna` apply immediately; the rest
 (IP, ports, rotctld) apply on the next stream start. When switching between a

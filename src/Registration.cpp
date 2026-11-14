@@ -14,20 +14,9 @@ static std::vector<SoapySDR::Kwargs> findFlex(const SoapySDR::Kwargs& args) {
     std::vector<SoapySDR::Kwargs> results;
 
     auto ini = fsb::loadSettingsFile();
-    auto radio   = fsb::settingFromMap(ini, {"radio"}, "192.168.0.208");
-    auto channel = fsb::settingFromMap(ini, {"channel"}, "1");
-    auto udpport = fsb::settingFromMap(ini, {"udpport"}, "7891");
-
-    if (args.count("radio")) {
-        SoapySDR::Kwargs dev;
-        dev["driver"]  = "FlexSkyBridge";
-        dev["label"]   = "Flex 6600 via FlexSkyBridge (" + args.at("radio") + ")";
-        dev["radio"]   = args.at("radio");
-        dev["channel"] = args.count("channel") ? args.at("channel") : channel;
-        dev["udpport"] = args.count("udpport") ? args.at("udpport") : udpport;
-        results.push_back(dev);
-        return results;
-    }
+    auto radio   = fsb::resolveSetting(args, ini, {"radio"}, "192.168.0.208");
+    auto channel = fsb::resolveSetting(args, ini, {"channel"}, "1");
+    auto udpport = fsb::resolveSetting(args, ini, {"udpport"}, "7891");
 
     SoapySDR::Kwargs dev;
     dev["driver"]  = "FlexSkyBridge";

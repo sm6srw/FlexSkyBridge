@@ -18,20 +18,6 @@ static void dbg(const std::string& msg) {
     fsb::debugLog(msg);
 }
 
-static std::string resolveSetting(
-    const SoapySDR::Kwargs& args,
-    const std::map<std::string, std::string>& ini,
-    std::initializer_list<const char*> keys,
-    const std::string& fallback)
-{
-    for (auto k : keys) {
-        auto it = args.find(k);
-        if (it != args.end() && !it->second.empty())
-            return it->second;
-    }
-    return fsb::settingFromMap(ini, keys, fallback);
-}
-
 static int parseIntSetting(const std::string& value, int fallback) {
     try {
         return std::stoi(value);
@@ -77,21 +63,21 @@ static void persistAllSettings(const std::string& radio,
 FlexDevice::FlexDevice(const SoapySDR::Kwargs& args) {
     dbg("=== Constructor llamado ===");
 
-    // Prioridad: args SoapySDR/SkyRoof > INI > valores por defecto.
-    // Precedence: SoapySDR/SkyRoof args > INI > defaults.
+    // Prioridad: INI existente > args SoapySDR/SkyRoof > valores por defecto.
+    // Precedence: existing INI > SoapySDR/SkyRoof args > defaults.
     auto ini = fsb::loadSettingsFile();
-    radioIP_       = resolveSetting(args, ini, {"radio"}, "192.168.0.208");
-    daxChannel_    = parseIntSetting(resolveSetting(args, ini, {"channel"}, "1"), 1);
+    radioIP_       = fsb::resolveSetting(args, ini, {"radio"}, "192.168.0.208");
+    daxChannel_    = parseIntSetting(fsb::resolveSetting(args, ini, {"channel"}, "1"), 1);
     udpPort_       = static_cast<uint16_t>(parseIntSetting(
-        resolveSetting(args, ini, {"udpport"}, "7891"), 7891));
+        fsb::resolveSetting(args, ini, {"udpport"}, "7891"), 7891));
     rigctldPort_   = static_cast<uint16_t>(parseIntSetting(
-        resolveSetting(args, ini, {"rigctld"}, "4532"), 4532));
+        fsb::resolveSetting(args, ini, {"rigctld"}, "4532"), 4532));
     rigctldTxPort_ = static_cast<uint16_t>(parseIntSetting(
-        resolveSetting(args, ini, {"rigctldtx"}, "4534"), 4534));
-    rotctldExe_    = resolveSetting(args, ini, {"rotctldexe"}, rotctldExe_);
-    rotctldArgs_   = resolveSetting(args, ini, {"rotctldargs"}, rotctldArgs_);
-    vBandAntenna_  = resolveSetting(args, ini, {"vantenna", "v_antenna"}, vBandAntenna_);
-    uBandAntenna_  = resolveSetting(args, ini, {"uantenna", "u_antenna"}, uBandAntenna_);
+        fsb::resolveSetting(args, ini, {"rigctldtx"}, "4534"), 4534));
+    rotctldExe_    = fsb::resolveSetting(args, ini, {"rotctldexe"}, rotctldExe_);
+    rotctldArgs_   = fsb::resolveSetting(args, ini, {"rotctldargs"}, rotctldArgs_);
+    vBandAntenna_  = fsb::resolveSetting(args, ini, {"vantenna", "v_antenna"}, vBandAntenna_);
+    uBandAntenna_  = fsb::resolveSetting(args, ini, {"uantenna", "u_antenna"}, uBandAntenna_);
 
     persistAllSettings(radioIP_, daxChannel_, udpPort_, rigctldPort_, rigctldTxPort_,
                        rotctldExe_, rotctldArgs_, vBandAntenna_, uBandAntenna_);

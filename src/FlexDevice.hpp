@@ -120,9 +120,9 @@ public:
     bool getDCOffsetMode(const int dir, const size_t ch) const override { return true; }
 
     // Settings persistidos en FlexSkyBridge_settings.ini (carpeta de datos de
-    // SkyRoof). Los args del constructor tienen prioridad sobre el INI.
+    // SkyRoof). Un valor ya presente en el INI tiene prioridad sobre los args.
     // Settings persisted in FlexSkyBridge_settings.ini (SkyRoof data folder).
-    // Constructor args take priority over the INI.
+    // A value already in the INI takes priority over constructor args.
     SoapySDR::ArgInfoList getSettingInfo(void) const override;
     void        writeSetting(const std::string& key, const std::string& value) override;
     std::string readSetting(const std::string& key) const override;

@@ -54,6 +54,25 @@ inline std::string settingFromMap(
     return fallback;
 }
 
+// An existing INI value wins. Constructor/find args fill only keys the INI
+// does not already have, then the hardcoded fallback is used.
+inline std::string resolveSetting(
+    const std::map<std::string, std::string>& args,
+    const std::map<std::string, std::string>& ini,
+    std::initializer_list<const char*> keys,
+    const std::string& fallback)
+{
+    auto fromIni = settingFromMap(ini, keys, "");
+    if (!fromIni.empty())
+        return fromIni;
+    for (auto k : keys) {
+        auto it = args.find(k);
+        if (it != args.end() && !it->second.empty())
+            return it->second;
+    }
+    return fallback;
+}
+
 inline void saveSettingsFile(const std::map<std::string, std::string>& settings) {
     static const std::vector<std::pair<const char*, const char*>> kKnown = {
         { "radio",       "FlexRadio IP" },
@@ -69,7 +88,7 @@ inline void saveSettingsFile(const std::map<std::string, std::string>& settings)
 
     std::ofstream out(settingsFilePath(), std::ios::trunc);
     out << "# FlexSkyBridge settings\n";
-    out << "# SoapySDR/SkyRoof constructor args override these values when provided.\n";
+    out << "# Existing values are kept. Constructor args are used only for missing keys.\n";
     out << "#\n";
 
     std::map<std::string, bool> written;
