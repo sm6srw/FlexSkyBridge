@@ -52,16 +52,26 @@ static void persistAllSettings(const std::string& radio,
                                const std::string& vAntenna,
                                const std::string& uAntenna) {
     auto settings = fsb::loadSettingsFile();
-    settings["radio"]       = radio;
-    settings["channel"]     = std::to_string(channel);
-    settings["udpport"]     = std::to_string(udpPort);
-    settings["rigctld"]     = std::to_string(rigctld);
-    settings["rigctldtx"]   = std::to_string(rigctldTx);
-    settings["rotctldexe"]  = rotctldExe;
-    settings["rotctldargs"] = rotctldArgs;
-    settings["v_antenna"]   = vAntenna;
-    settings["u_antenna"]   = uAntenna;
-    fsb::saveSettingsFile(settings);
+    bool added = false;
+    auto setIfAbsent = [&](const std::string& key, const std::string& value) {
+        if (settings.find(key) != settings.end())
+            return;
+        settings[key] = value;
+        added = true;
+    };
+    // Seed defaults only. An existing key keeps the value already in the INI,
+    // including when constructor args resolved a different runtime value.
+    setIfAbsent("radio", radio);
+    setIfAbsent("channel", std::to_string(channel));
+    setIfAbsent("udpport", std::to_string(udpPort));
+    setIfAbsent("rigctld", std::to_string(rigctld));
+    setIfAbsent("rigctldtx", std::to_string(rigctldTx));
+    setIfAbsent("rotctldexe", rotctldExe);
+    setIfAbsent("rotctldargs", rotctldArgs);
+    setIfAbsent("v_antenna", vAntenna);
+    setIfAbsent("u_antenna", uAntenna);
+    if (added)
+        fsb::saveSettingsFile(settings);
 }
 
 FlexDevice::FlexDevice(const SoapySDR::Kwargs& args) {
