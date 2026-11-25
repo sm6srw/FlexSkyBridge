@@ -36,24 +36,26 @@ SkyRoof ──SoapySDR──►  rigctld :4532   →  slice tune TCP/4992 ──
 ## Requisitos
 
 - Windows 10/11 x64
-- [PothosSDR](https://github.com/pothosware/PothosSDR/releases) (incluye SoapySDR)
+- [PothosSDR](https://github.com/pothosware/PothosSDR/releases) (incluye SoapySDR) para ejecutar SoapySDRUtil y los módulos
 - FlexRadio 6600 con SmartSDR v1.4 o superior
 - [Hamlib](https://hamlib.github.io/) instalado en `C:\hamlib\` (para control de rotor)
 - [PstRotator](http://www.qsl.net/yo3dmu/index_Page346.htm) configurado como servidor rotctld en puerto 4533
 - SkyRoof 1.33 o superior (ver sección [Instalación con SkyRoof](#instalación-con-skyroof--ruta-correcta-del-módulo))
-- CMake 3.15+ y Visual Studio 2019/2022
+- CMake 3.15+ y Visual Studio 2019/2022 (MSVC x64) para compilar
 
 ## Compilación
+
+El SDK de SoapySDR necesario para enlazar está incluido en `external/`. Por eso no es necesario instalar PothosSDR junto al proyecto para compilar el DLL en una máquina limpia o en GitHub Actions. Ejecuta los comandos desde un entorno de desarrollo x64 de Visual Studio. Los archivos locales son para Windows x64 con MSVC y la aplicación anfitriona debe proporcionar la `SoapySDR.dll` correspondiente en tiempo de ejecución. Consulta `external/README.md` para la procedencia y la licencia.
 
 ```powershell
 git clone https://github.com/ea5wa/FlexSkyBridge.git
 cd FlexSkyBridge
 
-cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build --config Release
 ```
 
-El DLL resultante queda en `build/Release/FlexSkyBridge.dll`.
+El DLL resultante queda en `build/FlexSkyBridge.dll`.
 
 ## Instalación
 
@@ -62,7 +64,7 @@ SkyRoof **no usa** el directorio estándar de PothosSDR para cargar plugins Soap
 ### 1. Módulos de PothosSDR (para que SoapySDRUtil lo detecte)
 
 ```powershell
-copy build\Release\FlexSkyBridge.dll "C:\Program Files\PothosSDR\lib\SoapySDR\modules0.8\"
+copy build\FlexSkyBridge.dll "C:\Program Files\PothosSDR\lib\SoapySDR\modules0.8\"
 ```
 
 ### 2. Módulos internos de SkyRoof (imprescindible para que funcione)
@@ -77,7 +79,7 @@ Copia la DLL a esa ruta:
 
 ```powershell
 # Ajusta según lo que indique el log de SkyRoof
-copy build\Release\FlexSkyBridge.dll "C:\RADIO\SkyRoof\SkyRoof\lib\SoapySDR\modules0.8\"
+copy build\FlexSkyBridge.dll "C:\RADIO\SkyRoof\SkyRoof\lib\SoapySDR\modules0.8\"
 ```
 
 Rutas conocidas según versión de SkyRoof:
@@ -222,24 +224,26 @@ SkyRoof ──SoapySDR──►  rigctld :4532   →  slice tune TCP/4992 ──
 ## Requirements
 
 - Windows 10/11 x64
-- [PothosSDR](https://github.com/pothosware/PothosSDR/releases) (includes SoapySDR)
+- [PothosSDR](https://github.com/pothosware/PothosSDR/releases) (includes SoapySDR) to run SoapySDRUtil and modules
 - FlexRadio 6600 with SmartSDR v1.4 or later
 - [Hamlib](https://hamlib.github.io/) installed in `C:\hamlib\` (for rotator control)
 - [PstRotator](http://www.qsl.net/yo3dmu/index_Page346.htm) configured as a rotctld server on port 4533
 - SkyRoof 1.33 or later
-- CMake 3.15+ and Visual Studio 2019/2022
+- CMake 3.15+ and Visual Studio 2019/2022 (MSVC x64) to build
 
 ## Build
+
+The SoapySDR SDK required for linking is included in `external/`. PothosSDR therefore does not need to be installed side by side to build the DLL on a clean machine or in GitHub Actions. Run the commands from a Visual Studio x64 developer environment. The local files target Windows x64 with MSVC, and the host application must provide the matching `SoapySDR.dll` at runtime. See `external/README.md` for provenance and licensing.
 
 ```powershell
 git clone https://github.com/ea5wa/FlexSkyBridge.git
 cd FlexSkyBridge
 
-cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build --config Release
 ```
 
-The resulting DLL is `build/Release/FlexSkyBridge.dll`.
+The resulting DLL is `build/FlexSkyBridge.dll`.
 
 ## Installation
 
@@ -248,7 +252,7 @@ SkyRoof **does not use** the standard PothosSDR directory to load SoapySDR plugi
 ### 1. PothosSDR modules (so SoapySDRUtil detects it)
 
 ```powershell
-copy build\Release\FlexSkyBridge.dll "C:\Program Files\PothosSDR\lib\SoapySDR\modules0.8\"
+copy build\FlexSkyBridge.dll "C:\Program Files\PothosSDR\lib\SoapySDR\modules0.8\"
 ```
 
 ### 2. SkyRoof internal modules (required for it to work)
@@ -263,7 +267,7 @@ Copy the DLL to that path:
 
 ```powershell
 # Adjust to what the SkyRoof log says
-copy build\Release\FlexSkyBridge.dll "C:\RADIO\SkyRoof\SkyRoof\lib\SoapySDR\modules0.8\"
+copy build\FlexSkyBridge.dll "C:\RADIO\SkyRoof\SkyRoof\lib\SoapySDR\modules0.8\"
 ```
 
 | SkyRoof version | Module path |
