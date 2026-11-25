@@ -309,7 +309,7 @@ void SmartSDRClient::setBandAntennas(const std::string& vAntenna, const std::str
 // Automatic antenna selection by band - the VHF/2m band uses the antenna
 // configured for V mode, the UHF/70cm band uses the one configured for U mode,
 // according to the frequency tuned on each slice. Both rxant and txant of the
-// slice are set to the same transverter, even if one of the two sides isunused
+// slice are set to the same transverter, even if one of the two sides is unused
 // on that slice - so each panadapter stays consistently tied to a single
 // transverter.
 void SmartSDRClient::applyAntennaForBand(int sliceIdx, double freqHz, bool isTx) {
