@@ -16,6 +16,7 @@ CMakeSettings.json
 # Binarios compilados
 *.dll
 *.lib
+!external/lib/SoapySDR.lib
 *.exp
 *.pdb
 *.obj
