@@ -26,7 +26,9 @@ public:
 
     // udpPort: puerto UDP donde el radio enviará los paquetes VITA-49
     // udpPort: UDP port where the radio will send the VITA-49 packets
-    void start(uint16_t udpPort, const std::string& unused = "");
+    // radioIP: IP del radio; se usa para abrir el camino UDP de vuelta.
+    // radioIP: radio IP; used to open the return UDP path.
+    void start(uint16_t udpPort, const std::string& radioIP = "");
     void stop();
 
     bool isRunning() const { return running_.load(); }
@@ -43,6 +45,7 @@ private:
     void captureLoop();
 
     uint16_t                  udpPort_{ 7891 };
+    std::string               radioIP_;
     std::atomic<bool>         running_{ false };
     std::thread               captureThread_;
 

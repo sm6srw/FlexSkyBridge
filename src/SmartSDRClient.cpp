@@ -309,7 +309,7 @@ void SmartSDRClient::setBandAntennas(const std::string& vAntenna, const std::str
 // Automatic antenna selection by band - the VHF/2m band uses the antenna
 // configured for V mode, the UHF/70cm band uses the one configured for U mode,
 // according to the frequency tuned on each slice. Both rxant and txant of the
-// slice are set to the same transverter, even if one of the two sides is unused
+// slice are set to the same transverter, even if one of the two sides isunused
 // on that slice - so each panadapter stays consistently tied to a single
 // transverter.
 void SmartSDRClient::applyAntennaForBand(int sliceIdx, double freqHz, bool isTx) {
@@ -365,12 +365,29 @@ void SmartSDRClient::startDaxIQStream(int channel,
     if (!firstClientId_.empty())
         sendCommand("client bind client_id=" + firstClientId_);
 
-    // 2. Registrar nuestro puerto UDP
-    // 2. Register our UDP port
+    // 2. Obtener IP local del socket TCP (funciona con VPN/NAT)
+    // 2. Obtain the TCP socket's local IP (works with VPN/NAT)
+    {
+        sockaddr_in localAddr{};
+        int addrLen = sizeof(localAddr);
+        SOCKET s = static_cast<SOCKET>(sock_);
+        if (getsockname(s, reinterpret_cast<sockaddr*>(&localAddr), &addrLen) == 0) {
+            char ipBuf[INET_ADDRSTRLEN] = {};
+            inet_ntop(AF_INET, &localAddr.sin_addr, ipBuf, sizeof(ipBuf));
+            std::string localIP(ipBuf);
+            dbgSdr("client ip enviado: " + localIP);
+            sendCommand("client ip " + localIP);
+        } else {
+            dbgSdr("WARN: getsockname falló, omitiendo client ip");
+        }
+    }
+
+    // 3. Registrar nuestro puerto UDP
+    // 3. Register our UDP port
     sendCommand("client udpport " + std::to_string(udpPort));
 
-    // 3. Eliminar stream preexistente en este canal (evita estado "Busy")
-    // 3. Remove pre-existing stream on this channel (avoids "Busy" state)
+    // 4. Eliminar stream preexistente en este canal (evita estado "Busy")
+    // 4. Remove pre-existing stream on this channel (avoids "Busy" state)
     uint32_t prevId = existingDaxIQStreamId_.load();
     if (prevId != 0) {
         std::ostringstream prevHex;
@@ -381,26 +398,26 @@ void SmartSDRClient::startDaxIQStream(int channel,
         std::this_thread::sleep_for(std::chrono::milliseconds(300));
     }
 
-    // Crear stream DAX IQ — sintaxis exacta de flexlib-go
-    // Create DAX IQ stream - exact flexlib-go syntax
+    // 5. Crear stream DAX IQ — sintaxis exacta de flexlib-go
+    // 5. Create DAX IQ stream - exact flexlib-go syntax
     sendCommand("stream create type=dax_iq daxiq_channel=" +
                 std::to_string(channel));
 
-    // 4. Asignar al panadapter con sample rate
-    // 4. Assign to the panadapter with sample rate
+    // 6. Asignar al panadapter con sample rate
+    // 6. Assign to the panadapter with sample rate
     if (!firstPanId_.empty()) {
         sendCommand("dax iq set " + std::to_string(channel) +
                     " pan=" + firstPanId_ +
                     " rate=" + std::to_string(sampleRate));
     }
 
-    // 5. Esperar stream ID (hasta 1 segundo)
-    // 5. Wait for stream ID (up to 1 second)
+    // 7. Esperar stream ID (hasta 1 segundo)
+    // 7. Wait for stream ID (up to 1 second)
     for (int i = 0; i < 100 && daxIQStreamId_.load() == 0; ++i)
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
-    // 6. Ajustar rate del stream al valor solicitado
-    // 6. Set the stream rate to the requested value
+    // 8. Ajustar rate del stream al valor solicitado
+    // 8. Set the stream rate to the requested value
     if (daxIQStreamId_.load() != 0) {
         std::ostringstream cmd;
         cmd << "stream set 0x" << std::hex << daxIQStreamId_.load()
