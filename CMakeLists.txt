@@ -66,3 +66,12 @@ endif()
 install(TARGETS FlexSkyBridge
     DESTINATION "lib/SoapySDR/modules0.8"
 )
+
+option(FLEXSKYBRIDGE_LOG_TO_DISK
+    "Enable writing FlexSkyBridge debug messages to disk" OFF)
+option(FLEXSKYBRIDGE_ENABLE_LOG_TO_DISK
+    "Alias for FLEXSKYBRIDGE_LOG_TO_DISK" "${FLEXSKYBRIDGE_LOG_TO_DISK}")
+
+if(FLEXSKYBRIDGE_LOG_TO_DISK OR FLEXSKYBRIDGE_ENABLE_LOG_TO_DISK)
+    add_compile_definitions(FLEXSKYBRIDGE_LOG_TO_DISK=1)
+endif()

@@ -84,6 +84,7 @@ inline void saveSettingsFile(const std::map<std::string, std::string>& settings)
         { "rotctldargs", "rotctld arguments" },
         { "v_antenna",   "V band antenna (2m/VHF)" },
         { "u_antenna",   "U band antenna (70cm/UHF)" },
+        { "logtodisk",   "Write FlexSkyBridge debug log to disk (0=off, 1=on)" },
     };
 
     std::ofstream out(settingsFilePath(), std::ios::trunc);

@@ -164,7 +164,7 @@ Si necesitas apuntar a un PstRotator en otra máquina, pasa el parámetro en el 
 
 - No es necesario activar el DAX IQ 1 en SmartSDR DAX — el plugin crea su propio stream independiente
 - El plugin convive con AetherSDR / SmartSDR-Win abierto simultáneamente
-- El log de depuración se escribe en `%APPDATA%\Afreet\Products\SkyRoof\FlexSkyBridge_debug.log`
+- El log de depuración se escribe en `%APPDATA%\Afreet\Products\SkyRoof\FlexSkyBridge_debug.log` solo cuando se compila con `-DFLEXSKYBRIDGE_LOG_TO_DISK=ON` y `logtodisk=1` está configurado en `FlexSkyBridge_settings.ini`. El registro en disco está desactivado por defecto.
 
 
 ## Arquitectura interna
@@ -343,7 +343,8 @@ To point to a PstRotator on another machine, pass the parameter in the device st
 
 - You don't need to enable DAX IQ 1 in SmartSDR DAX — the plugin creates its own independent stream
 - The plugin coexists with AetherSDR / SmartSDR-Win open at the same time
-- The debug log is written to `%APPDATA%\Afreet\Products\SkyRoof\FlexSkyBridge_debug.log`
+- The debug log is written to `%APPDATA%\Afreet\Products\SkyRoof\FlexSkyBridge_debug.log` only when built with `-DFLEXSKYBRIDGE_LOG_TO_DISK=ON` and `logtodisk=1` is set in `FlexSkyBridge_settings.ini`. Disk logging is off by default.
+
 
 ## Internal architecture
 

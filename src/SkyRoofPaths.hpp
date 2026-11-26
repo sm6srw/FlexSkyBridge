@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdlib>
+#include <cctype>
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -47,7 +48,29 @@ inline std::filesystem::path debugLogPath() {
     return skyRoofDataDir() / "FlexSkyBridge_debug.log";
 }
 
+inline bool logToDiskEnabled() {
+#ifdef FLEXSKYBRIDGE_LOG_TO_DISK
+    std::ifstream in(settingsFilePath());
+    std::string line;
+    while (std::getline(in, line)) {
+        if (!line.empty() && line.back() == '\r') line.pop_back();
+        auto eq = line.find('=');
+        if (eq == std::string::npos) continue;
+        auto key = line.substr(0, eq);
+        if (key == "logtodisk" || key == "log_to_disk" || key == "enablelogtodisk") {
+            auto value = line.substr(eq + 1);
+            for (char& c : value) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            value.erase(0, value.find_first_not_of(" \t"));
+            value.erase(value.find_last_not_of(" \t") + 1);
+            return value == "1" || value == "true" || value == "yes" || value == "on" || value == "enabled";
+        }
+    }
+#endif
+    return false;
+}
+
 inline void debugLog(const std::string& msg) {
+    if (!logToDiskEnabled()) return;
     std::ofstream log(debugLogPath(), std::ios::app);
     log << msg << "\n";
 }

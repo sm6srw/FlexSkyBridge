@@ -56,6 +56,7 @@ static void persistAllSettings(const std::string& radio,
     setIfAbsent("rotctldargs", rotctldArgs);
     setIfAbsent("v_antenna", vAntenna);
     setIfAbsent("u_antenna", uAntenna);
+    setIfAbsent("logtodisk", "0");
     if (added)
         fsb::saveSettingsFile(settings);
 }
