@@ -20,9 +20,17 @@ jobs:
         uses: actions/checkout@v7.0.1
 
       - name: Set up MSVC x64
-        uses: ilammy/msvc-dev-cmd@v1.13.0
-        with:
-          arch: x64
+        shell: pwsh
+        run: |
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio\Installer\vswhere.exe"
+          $vsPath = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if (-not $vsPath) { throw "Visual Studio C++ build tools not found" }
+          $vcvars = Join-Path $vsPath "VC\Auxiliary\Build\vcvars64.bat"
+          cmd.exe /d /c "`"$vcvars`" >nul && set" | Where-Object { $_ -match '^([^=]+)=(.*)$' } | ForEach-Object {
+            $name, $value = $_ -split '=', 2
+            [Environment]::SetEnvironmentVariable($name, $value, 'Process')
+            "$name=$value" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          }
 
       - name: Configure
         run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
